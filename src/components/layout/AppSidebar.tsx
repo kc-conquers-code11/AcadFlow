@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -7,33 +7,33 @@ import {
   BarChart3, 
   Settings,
   Users,
-  LogOut
+  LogOut,
+  GraduationCap
 } from 'lucide-react';
-import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
+  SidebarFooter,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarHeader,
-  SidebarFooter,
-  useSidebar,
+  SidebarRail,
+  SidebarSeparator,
 } from '@/components/ui/sidebar';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 
+// Define the structure for Nav Items
 interface NavItem {
   title: string;
   url: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ElementType;
   roles: ('student' | 'teacher' | 'hod')[];
 }
 
+// Your Navigation Data
 const navItems: NavItem[] = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, roles: ['student', 'teacher', 'hod'] },
   { title: 'Subjects', url: '/subjects', icon: BookOpen, roles: ['student', 'teacher', 'hod'] },
@@ -41,78 +41,114 @@ const navItems: NavItem[] = [
   { title: 'Submissions', url: '/submissions', icon: Upload, roles: ['teacher', 'hod'] },
   { title: 'Reports', url: '/reports', icon: BarChart3, roles: ['teacher', 'hod'] },
   { title: 'Users', url: '/users', icon: Users, roles: ['hod'] },
-  { title: 'Settings', url: '/settings', icon: Settings, roles: ['student', 'teacher', 'hod'] },
 ];
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const { state } = useSidebar();
-  const collapsed = state === 'collapsed';
 
   if (!user) return null;
 
   const filteredItems = navItems.filter(item => item.roles.includes(user.role));
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
-      <SidebarHeader className="p-4">
-        {!collapsed && (
-          <div className="flex flex-col">
-            <span className="text-lg font-semibold text-sidebar-foreground">Academic Portal</span>
-            <span className="text-xs text-muted-foreground">Computer Engineering</span>
+    <Sidebar collapsible="icon" className="border-r border-slate-200 bg-slate-50/50">
+      
+      {/* 1. HEADER: Brand Identity */}
+      <SidebarHeader className="h-16 flex items-center justify-center border-b border-slate-200/60 px-4">
+        <div className="flex items-center gap-3 w-full overflow-hidden transition-all group-data-[collapsible=icon]:justify-center">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-md shadow-blue-600/20">
+            <GraduationCap className="h-5 w-5" />
           </div>
-        )}
+          <div className="flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
+            <span className="font-bold text-slate-800 text-sm">AcadFlow</span>
+            <span className="text-[10px] text-slate-500 font-medium">Computer Engg.</span>
+          </div>
+        </div>
       </SidebarHeader>
 
-      <Separator />
+      {/* 2. CONTENT: Navigation Links */}
+      <SidebarContent className="px-2 py-4">
+        <SidebarMenu>
+          <div className="px-2 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider group-data-[collapsible=icon]:hidden">
+            Workspace
+          </div>
+          
+          {filteredItems.map((item) => {
+            const isActive = location.pathname === item.url;
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  tooltip={item.title}
+                  className={cn(
+                    "h-10 transition-all duration-200 mb-1",
+                    isActive 
+                      ? "bg-white text-blue-700 shadow-sm border border-slate-200 font-medium" 
+                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/80"
+                  )}
+                >
+                  <Link to={item.url}>
+                    <item.icon className={cn("h-4 w-4", isActive ? "text-blue-600" : "text-slate-400")} />
+                    <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
 
-      <SidebarContent className="px-2">
-        <SidebarGroup>
-          <SidebarGroupLabel className={collapsed ? 'sr-only' : ''}>Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {filteredItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
-                    isActive={location.pathname === item.url}
-                    tooltip={collapsed ? item.title : undefined}
-                  >
-                    <NavLink 
-                      to={item.url} 
-                      className="flex items-center gap-3 px-3 py-2 rounded-md transition-colors"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <SidebarSeparator className="my-4 bg-slate-200/60" />
+
+        {/* System / Settings Group */}
+        <SidebarMenu>
+          <div className="px-2 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider group-data-[collapsible=icon]:hidden">
+            System
+          </div>
+          <SidebarMenuItem>
+            <SidebarMenuButton 
+              asChild 
+              tooltip="Settings" 
+              className={cn(
+                "h-10 transition-all duration-200",
+                location.pathname === '/settings' 
+                  ? "bg-white text-blue-700 shadow-sm border border-slate-200 font-medium" 
+                  : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/80"
+              )}
+            >
+              <Link to="/settings">
+                <Settings className="h-4 w-4 text-slate-400" />
+                <span className="group-data-[collapsible=icon]:hidden">Settings</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 mt-auto">
-        <Separator className="mb-4" />
-        {!collapsed && (
-          <div className="mb-3">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">{user.name}</p>
-            <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
+      {/* 3. FOOTER: User & Logout */}
+      <SidebarFooter className="border-t border-slate-200/60 bg-white/50 p-2">
+        {!user ? null : (
+          <div className="flex flex-col gap-2">
+            {/* User Info (Hidden when collapsed) */}
+            <div className="hidden group-data-[collapsible=icon]:hidden px-2 py-1.5">
+              <p className="text-sm font-medium text-slate-900 truncate">{user.name}</p>
+              <p className="text-xs text-slate-500 capitalize">{user.role}</p>
+            </div>
+            
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="w-full justify-start text-slate-500 hover:text-red-600 hover:bg-red-50 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+              onClick={logout}
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="ml-2 group-data-[collapsible=icon]:hidden">Sign Out</span>
+            </Button>
           </div>
         )}
-        <Button 
-          variant="ghost" 
-          size={collapsed ? 'icon' : 'default'}
-          className="w-full justify-start text-muted-foreground hover:text-foreground"
-          onClick={logout}
-        >
-          <LogOut className="h-4 w-4" />
-          {!collapsed && <span className="ml-2">Log out</span>}
-        </Button>
       </SidebarFooter>
+      
+      <SidebarRail />
     </Sidebar>
   );
 }
