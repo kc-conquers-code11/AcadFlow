@@ -1,0 +1,223 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Academic SaaS Design System - Minimal, Institutional, Professional */
+
+@layer base {
+  :root {
+    /* Core backgrounds - clean whites */
+    --background: 0 0% 100%;
+    --foreground: 220 15% 15%;
+
+    /* Card surfaces */
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 15%;
+
+    /* Popovers */
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 15%;
+
+    /* Primary - Academic Blue */
+    --primary: 217 91% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Neutral gray */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 15% 25%;
+
+    /* Muted elements */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 10% 46%;
+
+    /* Accent - Subtle highlight */
+    --accent: 217 91% 97%;
+    --accent-foreground: 217 91% 45%;
+
+    /* Destructive - Clear red */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Success state */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning state */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Borders & inputs */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 45%;
+
+    --radius: 0.375rem;
+
+    /* Sidebar */
+    --sidebar-background: 220 14% 98%;
+    --sidebar-foreground: 220 15% 25%;
+    --sidebar-primary: 217 91% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 91% 97%;
+    --sidebar-accent-foreground: 217 91% 45%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217 91% 45%;
+  }
+
+  .dark {
+    --background: 220 15% 8%;
+    --foreground: 220 14% 96%;
+
+    --card: 220 15% 10%;
+    --card-foreground: 220 14% 96%;
+
+    --popover: 220 15% 10%;
+    --popover-foreground: 220 14% 96%;
+
+    --primary: 217 91% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 15% 15%;
+    --secondary-foreground: 220 14% 96%;
+
+    --muted: 220 15% 15%;
+    --muted-foreground: 220 10% 60%;
+
+    --accent: 217 91% 15%;
+    --accent-foreground: 217 91% 75%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 45%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 220 15% 18%;
+    --input: 220 15% 18%;
+    --ring: 217 91% 55%;
+
+    --sidebar-background: 220 15% 6%;
+    --sidebar-foreground: 220 14% 96%;
+    --sidebar-primary: 217 91% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 91% 15%;
+    --sidebar-accent-foreground: 217 91% 75%;
+    --sidebar-border: 220 15% 18%;
+    --sidebar-ring: 217 91% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Typography hierarchy for academic content */
+  h1 {
+    @apply text-2xl font-semibold tracking-tight;
+  }
+
+  h2 {
+    @apply text-xl font-semibold tracking-tight;
+  }
+
+  h3 {
+    @apply text-lg font-medium;
+  }
+}
+
+/* TipTap Editor Styles */
+.tiptap-editor {
+  @apply min-h-[400px] outline-none;
+}
+
+.tiptap-editor p {
+  @apply mb-3;
+}
+
+.tiptap-editor h1 {
+  @apply text-2xl font-bold mb-4 mt-6;
+}
+
+.tiptap-editor h2 {
+  @apply text-xl font-semibold mb-3 mt-5;
+}
+
+.tiptap-editor h3 {
+  @apply text-lg font-medium mb-2 mt-4;
+}
+
+.tiptap-editor ul,
+.tiptap-editor ol {
+  @apply ml-6 mb-3;
+}
+
+.tiptap-editor ul {
+  @apply list-disc;
+}
+
+.tiptap-editor ol {
+  @apply list-decimal;
+}
+
+.tiptap-editor li {
+  @apply mb-1;
+}
+
+.tiptap-editor table {
+  @apply border-collapse w-full mb-4;
+}
+
+.tiptap-editor th,
+.tiptap-editor td {
+  @apply border border-border p-2 text-left;
+}
+
+.tiptap-editor th {
+  @apply bg-muted font-medium;
+}
+
+.tiptap-editor pre {
+  @apply bg-muted p-4 rounded-md mb-4 overflow-x-auto;
+}
+
+.tiptap-editor code {
+  @apply bg-muted px-1 py-0.5 rounded text-sm font-mono;
+}
+
+.tiptap-editor pre code {
+  @apply bg-transparent p-0;
+}
+
+.tiptap-editor blockquote {
+  @apply border-l-4 border-primary pl-4 italic my-4;
+}
+
+.tiptap-editor img {
+  @apply max-w-full h-auto my-4 rounded;
+}
+
+/* Status badges */
+.status-pending {
+  @apply bg-warning/10 text-warning;
+}
+
+.status-submitted {
+  @apply bg-primary/10 text-primary;
+}
+
+.status-evaluated {
+  @apply bg-success/10 text-success;
+}
+
+.status-overdue {
+  @apply bg-destructive/10 text-destructive;
+}
