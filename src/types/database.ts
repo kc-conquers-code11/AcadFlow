@@ -7,6 +7,9 @@ export interface Profile {
   enrollment_number: string | null;
   year: number | null;
   avatar_url: string | null;
+  // New Fields for Student Identification
+  division: 'A' | 'B' | null;
+  batch: 'A' | 'B' | 'C' | null;
 }
 
 export interface Subject {
@@ -28,6 +31,9 @@ export interface Assignment {
   programming_language: string | null;
   max_marks: number;
   created_by: string;
+  // New Fields for Targeting
+  target_division: 'A' | 'B' | null; // If null, applies to all divisions
+  target_batch: 'A' | 'B' | 'C' | null; // If null, applies to whole class
 }
 
 export interface Submission {
