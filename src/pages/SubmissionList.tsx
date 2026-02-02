@@ -1,224 +1,237 @@
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Badge } from '@/components/ui/badge';
+import { motion } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
-import { 
-  getAssignmentById,
-  getSubjectById,
-  mockSubmissions,
-  mockStudents
-} from '@/data/mockData';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { 
   ArrowLeft, 
-  Eye, 
-  AlertTriangle, 
+  Search, 
+  Filter, 
+  FileText, 
   CheckCircle2, 
   Clock, 
-  FileText,
-  Users,
-  Search
+  MoreVertical,
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 
-// --- Visual Components ---
-
-const StatCard = ({ title, value, icon: Icon, color }: any) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between"
-  >
-    <div>
-      <p className="text-sm font-medium text-slate-500">{title}</p>
-      <h3 className="text-2xl font-bold text-slate-900 mt-1">{value}</h3>
-    </div>
-    <div className={cn("p-3 rounded-xl", color)}>
-      <Icon size={20} />
-    </div>
-  </motion.div>
-);
-
-const StatusPill = ({ status }: { status: string }) => {
-  if (status === 'evaluated') return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-50">Graded</Badge>;
-  if (status === 'submitted') return <Badge className="bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-50">Pending Review</Badge>;
-  if (status === 'draft') return <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">Draft</Badge>;
-  return <Badge variant="outline" className="text-slate-400 border-slate-200">Not Started</Badge>;
+// Helper for Status Badge
+const StatusBadge = ({ status, marks }: { status: string; marks?: number }) => {
+  if (status === 'evaluated') {
+    return (
+      <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-100">
+        <CheckCircle2 size={12} className="mr-1" /> Graded: {marks}
+      </Badge>
+    );
+  }
+  if (status === 'submitted') {
+    return (
+      <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-100">
+        <Clock size={12} className="mr-1" /> Needs Review
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-slate-500 border-slate-200 bg-slate-50">
+      Not Submitted
+    </Badge>
+  );
 };
 
 export default function SubmissionList() {
   const { assignmentId } = useParams<{ assignmentId: string }>();
-  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  
+  const [assignment, setAssignment] = useState<any>(null);
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]); // To list non-submitters too if needed
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'evaluated'>('all');
 
-  // Redirect Logic
-  if (!user || !assignmentId) return null;
+  useEffect(() => {
+    if (assignmentId) fetchData();
+  }, [assignmentId]);
 
-  const assignment = getAssignmentById(assignmentId);
-  const subject = assignment ? getSubjectById(assignment.subjectId) : undefined;
-  const submissions = mockSubmissions.filter(s => s.assignmentId === assignmentId);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
 
-  // Computed Stats
-  const stats = useMemo(() => ({
-    total: mockStudents.length,
-    submitted: submissions.filter(s => s.status !== 'draft').length,
-    pending: submissions.filter(s => s.status === 'submitted').length,
-    evaluated: submissions.filter(s => s.status === 'evaluated').length
-  }), [submissions]);
+      // 1. Fetch Assignment Details
+      const { data: assignData, error: assignError } = await supabase
+        .from('assignments')
+        .select('*, subjects(name, code)')
+        .eq('id', assignmentId)
+        .single();
+      
+      if (assignError) throw assignError;
+      setAssignment(assignData);
 
-  if (!assignment) {
+      // 2. Fetch Submissions with Student Profiles
+      const { data: subData, error: subError } = await supabase
+        .from('submissions')
+        .select(`
+          *,
+          profiles:student_id (name, enrollment_number, avatar_url)
+        `)
+        .eq('assignment_id', assignmentId);
+
+      if (subError) throw subError;
+      setSubmissions(subData || []);
+
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter Logic
+  const filteredSubmissions = submissions.filter(sub => {
+    const nameMatch = sub.profiles?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    const rollMatch = sub.profiles?.enrollment_number?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesSearch = nameMatch || rollMatch;
+    
+    if (filter === 'all') return matchesSearch;
+    if (filter === 'pending') return matchesSearch && sub.status === 'submitted';
+    if (filter === 'evaluated') return matchesSearch && sub.status === 'evaluated';
+    
+    return matchesSearch;
+  });
+
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-[50vh]">
-        <div className="h-12 w-12 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-          <FileText className="text-slate-400" />
-        </div>
-        <p className="text-slate-500 font-medium">Assignment not found</p>
-        <Button variant="link" asChild className="mt-2 text-blue-600">
-          <Link to="/dashboard/submissions">Back to List</Link>
-        </Button>
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-8 pb-10">
+    <div className="max-w-5xl mx-auto pb-10">
       
-      {/* 1. Header & Breadcrumb */}
-      <div>
-        <Button variant="ghost" size="sm" className="mb-4 text-slate-500 hover:text-slate-900 -ml-2" asChild>
-          <Link to="/dashboard/submissions">
+      {/* Header */}
+      <div className="mb-8">
+        <Button variant="ghost" size="sm" className="mb-4 text-slate-500 -ml-2" asChild>
+          <Link to="/dashboard/assignments">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Assignments
           </Link>
         </Button>
         
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{assignment.title}</h1>
-            <p className="text-slate-500 mt-1">{subject?.name} • {subject?.code}</p>
+            <h1 className="text-2xl font-bold text-slate-900">{assignment.title}</h1>
+            <p className="text-slate-500 mt-1">
+              {assignment.subjects?.name} • {assignment.subjects?.code}
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-             <div className="relative w-64 hidden md:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                <Input placeholder="Search student..." className="pl-9 h-9 bg-white border-slate-200" />
+          <div className="flex gap-2 text-sm">
+             <div className="px-3 py-1 bg-white border border-slate-200 rounded-md shadow-sm">
+                <span className="text-slate-500">Total:</span> <span className="font-bold">{submissions.length}</span>
              </div>
-             <Button variant="outline" className="border-slate-200">Export CSV</Button>
+             <div className="px-3 py-1 bg-blue-50 border border-blue-100 rounded-md shadow-sm text-blue-700">
+                <span className="opacity-70">Pending:</span> <span className="font-bold">{submissions.filter(s => s.status === 'submitted').length}</span>
+             </div>
           </div>
         </div>
       </div>
 
-      {/* 2. Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard 
-          title="Total Students" 
-          value={stats.total} 
-          icon={Users} 
-          color="bg-slate-100 text-slate-600"
-        />
-        <StatCard 
-          title="Submitted" 
-          value={stats.submitted} 
-          icon={FileText} 
-          color="bg-blue-50 text-blue-600"
-        />
-        <StatCard 
-          title="Pending Review" 
-          value={stats.pending} 
-          icon={Clock} 
-          color="bg-amber-50 text-amber-600"
-        />
-        <StatCard 
-          title="Graded" 
-          value={stats.evaluated} 
-          icon={CheckCircle2} 
-          color="bg-emerald-50 text-emerald-600"
-        />
+      {/* Controls */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <Input 
+            placeholder="Search student..." 
+            className="pl-9 border-slate-200 focus:ring-blue-500/10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+          {['all', 'pending', 'evaluated'].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f as any)}
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize",
+                filter === f 
+                  ? "bg-white text-slate-900 shadow-sm" 
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* 3. Submissions Table */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm"
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50/80 text-slate-500 font-medium border-b border-slate-200">
+      {/* List */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+            <tr>
+              <th className="px-6 py-4 w-[40%]">Student</th>
+              <th className="px-6 py-4">Submitted At</th>
+              <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filteredSubmissions.length === 0 ? (
               <tr>
-                <th className="px-6 py-4">Student Name</th>
-                <th className="px-6 py-4">Enrollment ID</th>
-                <th className="px-6 py-4">Submission Status</th>
-                <th className="px-6 py-4">Plagiarism Check</th>
-                <th className="px-6 py-4">Grade</th>
-                <th className="px-6 py-4 text-right">Action</th>
+                <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
+                  No submissions found matching filters.
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {mockStudents.map((student) => {
-                const submission = submissions.find(s => s.studentId === student.id);
-                const isRisk = (submission?.plagiarismScore || 0) > 30;
-
-                return (
-                  <tr key={student.id} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-slate-900">{student.name}</div>
-                      <div className="text-xs text-slate-400">{student.email}</div>
-                    </td>
-                    
-                    <td className="px-6 py-4 text-slate-600 font-mono text-xs">
-                      {student.enrollmentNumber}
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <StatusPill status={submission?.status || 'none'} />
-                    </td>
-
-                    <td className="px-6 py-4">
-                      {submission?.plagiarismScore !== undefined ? (
-                        <div className="flex items-center gap-2">
-                          {isRisk && <AlertTriangle size={14} className="text-red-500" />}
-                          <span className={cn(
-                            "font-medium",
-                            isRisk ? "text-red-600" : "text-slate-600"
-                          )}>
-                            {submission.plagiarismScore}%
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-slate-300">-</span>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-4">
-                      {submission?.marks !== undefined ? (
-                        <span className="font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">
-                          {submission.marks} <span className="text-slate-400 font-normal text-xs">/ {assignment.maxMarks}</span>
-                        </span>
-                      ) : (
-                        <span className="text-slate-300">-</span>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-4 text-right">
-                      {submission && submission.status !== 'draft' ? (
-                        <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" asChild>
-                          <Link to={`/evaluate/${submission.id}`}>
-                            <Eye size={16} className="mr-2" /> Review
-                          </Link>
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-slate-400 italic pr-2">No submission</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
+            ) : (
+              filteredSubmissions.map((sub) => (
+                <motion.tr 
+                  key={sub.id} 
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }}
+                  className="hover:bg-slate-50/80 transition-colors"
+                >
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs border border-slate-200">
+                        {sub.profiles?.name?.charAt(0) || 'U'}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-slate-900">{sub.profiles?.name}</div>
+                        <div className="text-xs text-slate-500 font-mono">{sub.profiles?.enrollment_number || 'No ID'}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-slate-500">
+                    {sub.submitted_at 
+                      ? new Date(sub.submitted_at).toLocaleDateString() + ' ' + new Date(sub.submitted_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+                      : <span className="italic text-slate-400">Draft saved</span>
+                    }
+                  </td>
+                  <td className="px-6 py-4">
+                    <StatusBadge status={sub.status} marks={sub.marks} />
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <Button size="sm" variant="outline" className="h-8 border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200" asChild>
+                      <Link to={`/evaluate/${sub.id}`}>
+                        Evaluate <ChevronRight size={14} className="ml-1" />
+                      </Link>
+                    </Button>
+                  </td>
+                </motion.tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
