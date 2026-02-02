@@ -1,13 +1,10 @@
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase'; // Real DB
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  getSubjectById, 
-  getAssignmentsBySubject, 
-  getSubmissionByAssignmentAndStudent 
-} from '@/data/mockData';
 import { 
   ArrowLeft, 
   FileText, 
@@ -18,12 +15,12 @@ import {
   ChevronRight, 
   FlaskConical,
   BookOpen,
-  LayoutGrid
+  LayoutGrid,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // --- Sub-Components ---
-
 const StatusPill = ({ status, marks, maxMarks }: { status: string; marks?: number; maxMarks: number }) => {
   if (status === 'evaluated' && marks !== undefined) {
     return (
@@ -33,7 +30,6 @@ const StatusPill = ({ status, marks, maxMarks }: { status: string; marks?: numbe
       </span>
     );
   }
-
   if (status === 'submitted') {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
@@ -42,7 +38,6 @@ const StatusPill = ({ status, marks, maxMarks }: { status: string; marks?: numbe
       </span>
     );
   }
-
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">
       Pending
@@ -53,11 +48,70 @@ const StatusPill = ({ status, marks, maxMarks }: { status: string; marks?: numbe
 export default function SubjectDetail() {
   const { subjectId } = useParams<{ subjectId: string }>();
   const { user } = useAuth();
+  
+  const [subject, setSubject] = useState<any>(null);
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<any[]>([]); // To map status
+  const [loading, setLoading] = useState(true);
 
   if (!user || !subjectId) return null;
 
-  const subject = getSubjectById(subjectId);
-  const assignments = getAssignmentsBySubject(subjectId);
+  useEffect(() => {
+    fetchData();
+  }, [subjectId]);
+
+  const fetchData = async () => {
+    try {
+      // 1. Fetch Subject Info
+      const { data: subData, error: subError } = await supabase
+        .from('subjects')
+        .select('*')
+        .eq('id', subjectId)
+        .single();
+      
+      if (subError) throw subError;
+      setSubject(subData);
+
+      // 2. Fetch Assignments for this subject
+      const { data: assignData, error: assignError } = await supabase
+        .from('assignments')
+        .select('*')
+        .eq('subject_id', subjectId)
+        .order('deadline', { ascending: true });
+
+      if (assignError) throw assignError;
+      setAssignments(assignData || []);
+
+      // 3. Fetch My Submissions for these assignments (to show status)
+      if (assignData && assignData.length > 0) {
+        const { data: submisData } = await supabase
+          .from('submissions')
+          .select('assignment_id, status, marks')
+          .eq('student_id', user.id)
+          .in('assignment_id', assignData.map(a => a.id));
+        
+        setSubmissions(submisData || []);
+      }
+
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper to find status for a specific assignment
+  const getMySubmission = (assignmentId: string) => {
+    return submissions.find(s => s.assignment_id === assignmentId);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+      </div>
+    );
+  }
 
   if (!subject) {
     return (
@@ -91,7 +145,7 @@ export default function SubjectDetail() {
               <span className="px-2 py-1 rounded-md bg-slate-100 border border-slate-200 text-xs font-mono font-bold text-slate-600">
                 {subject.code}
               </span>
-              {subject.hasCodeEditor && (
+              {subject.has_code_editor && (
                 <Badge variant="outline" className="gap-1.5 bg-violet-50 text-violet-700 border-violet-100">
                   <Code2 size={12} /> Lab Enabled
                 </Badge>
@@ -128,12 +182,10 @@ export default function SubjectDetail() {
         ) : (
           <div className="grid gap-3">
             {assignments.map((assignment, index) => {
-              const submission = user.role === 'student' 
-                ? getSubmissionByAssignmentAndStudent(assignment.id, user.id)
-                : undefined;
+              const submission = getMySubmission(assignment.id);
               
               const deadline = new Date(assignment.deadline);
-              const isOverdue = deadline < new Date() && !submission?.submittedAt;
+              const isOverdue = deadline < new Date() && !submission; // Logic refined
               const daysLeft = Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
               
               const isPractical = assignment.type === 'practical';
@@ -189,23 +241,23 @@ export default function SubjectDetail() {
                       <StatusPill 
                         status={submission?.status || 'pending'} 
                         marks={submission?.marks} 
-                        maxMarks={assignment.maxMarks} 
+                        maxMarks={assignment.max_marks} 
                       />
                     )}
                     
                     <div className="flex gap-2">
                       {user.role === 'student' ? (
-                         <Button size="sm" className="bg-slate-900 hover:bg-slate-800 text-white shadow-sm" asChild>
-                           <Link to={`/editor/${assignment.id}`}>
-                             {submission ? 'View' : 'Start'} <ChevronRight size={14} className="ml-1" />
-                           </Link>
-                         </Button>
+                          <Button size="sm" className="bg-slate-900 hover:bg-slate-800 text-white shadow-sm" asChild>
+                            <Link to={`/editor/${assignment.id}`}>
+                              {submission ? 'View' : 'Start'} <ChevronRight size={14} className="ml-1" />
+                            </Link>
+                          </Button>
                       ) : (
-                         <Button size="sm" variant="outline" className="border-slate-200" asChild>
-                           <Link to={`/dashboard/submissions/${assignment.id}`}>
-                             Submissions
-                           </Link>
-                         </Button>
+                          <Button size="sm" variant="outline" className="border-slate-200" asChild>
+                            <Link to={`/dashboard/submissions/${assignment.id}`}>
+                              Submissions
+                            </Link>
+                          </Button>
                       )}
                     </div>
                   </div>

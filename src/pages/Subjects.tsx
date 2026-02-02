@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase'; // Real DB
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { mockSubjects, mockAssignments } from '@/data/mockData';
 import { 
   Code2, 
   FileText, 
@@ -14,26 +14,66 @@ import {
   BookOpen, 
   LayoutGrid,
   FlaskConical,
-  Library
+  Library,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export default function Subjects() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   if (!user) return null;
 
-  // Filter subjects based on search
-  const filteredSubjects = mockSubjects.filter(sub => 
+  // 1. Fetch Subjects from Supabase
+  useEffect(() => {
+    fetchSubjects();
+  }, []);
+
+  const fetchSubjects = async () => {
+    try {
+      // Fetch subjects AND related assignments to count them
+      const { data, error } = await supabase
+        .from('subjects')
+        .select(`
+          *,
+          assignments (
+            id,
+            type
+          )
+        `);
+
+      if (error) throw error;
+      setSubjects(data || []);
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+      toast.error('Failed to load subjects');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2. Filter Logic
+  const filteredSubjects = subjects.filter(sub => 
     sub.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     sub.code.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-8 pb-10">
       
-      {/* 1. Header & Search */}
+      {/* Header & Search */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Academic Subjects</h1>
@@ -55,7 +95,7 @@ export default function Subjects() {
         </div>
       </div>
 
-      {/* 2. Subjects Grid */}
+      {/* Subjects Grid */}
       {filteredSubjects.length === 0 ? (
         <div className="text-center py-20 bg-white border border-dashed border-slate-200 rounded-xl">
           <div className="h-12 w-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -69,16 +109,14 @@ export default function Subjects() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredSubjects.map((subject, index) => {
-            const assignmentCount = mockAssignments.filter(a => a.subjectId === subject.id).length;
-            const practicalCount = mockAssignments.filter(
-              a => a.subjectId === subject.id && a.type === 'practical'
-            ).length;
+            // Count assignments from the joined data
+            const assignmentCount = subject.assignments?.length || 0;
+            const practicalCount = subject.assignments?.filter((a: any) => a.type === 'practical').length || 0;
             
-            const isLab = subject.hasCodeEditor;
+            const isLab = subject.has_code_editor; // DB column is snake_case
             const Icon = isLab ? Code2 : BookOpen;
-            const themeColor = isLab ? "violet" : "blue";
             
-            // Dynamic Tailwind classes based on subject type
+            // Dynamic Tailwind classes
             const iconBg = isLab ? "bg-violet-50 text-violet-600" : "bg-blue-50 text-blue-600";
             const hoverBorder = isLab ? "group-hover:border-violet-200" : "group-hover:border-blue-200";
 
@@ -134,7 +172,7 @@ export default function Subjects() {
                     </div>
                   </div>
 
-                  {/* Card Footer / Action */}
+                  {/* Card Footer */}
                   <div className="bg-slate-50/50 p-4 border-t border-slate-100">
                     <Button 
                       variant="ghost" 
