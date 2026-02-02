@@ -11,13 +11,22 @@ interface AppUser {
   department?: string;
   enrollmentNumber?: string;
   year?: number;
+  division?: 'A' | 'B';
+  batch?: 'A' | 'B' | 'C';
 }
 
 interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ error: any }>;
-  signup: (email: string, password: string, name: string, role: string) => Promise<{ error: any }>;
+  signup: (
+    email: string, 
+    password: string, 
+    name: string, 
+    role: string,
+    division?: string,
+    batch?: string
+  ) => Promise<{ error: any }>;
   logout: () => Promise<void>;
 }
 
@@ -65,8 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Error fetching profile:', error);
-        // Fallback mainly for immediate UI feedback on fresh signup 
-        // before the trigger finishes inserting the row
         setUser({ 
           id: userId, 
           email, 
@@ -82,7 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: data.role,
           department: data.department,
           enrollmentNumber: data.enrollment_number,
-          year: data.year
+          year: data.year,
+          division: data.division,
+          batch: data.batch
         });
       }
     } catch (err) {
@@ -101,8 +110,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
-  const signup = async (email: string, password: string, name: string, role: string) => {
-    // Ye 'options.data' humare SQL Trigger ke paas jayega
+  const signup = async (
+    email: string, 
+    password: string, 
+    name: string, 
+    role: string,
+    division?: string,
+    batch?: string
+  ) => {
+    // Pass metadata to SQL Trigger
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -110,8 +126,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         data: {
           name,
           role, 
-          // Default department set kar sakte hain ya form se le sakte hain
-          department: 'Computer Engineering' 
+          department: 'Computer Engineering',
+          division,
+          batch
         },
       },
     });

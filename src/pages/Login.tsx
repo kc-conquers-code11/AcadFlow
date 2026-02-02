@@ -62,6 +62,11 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState<'student' | 'teacher'>('student');
+  
+  // New States for Division & Batch
+  const [division, setDivision] = useState<'A' | 'B'>('A');
+  const [batch, setBatch] = useState<'A' | 'B' | 'C'>('A');
+
   const [isLoading, setIsLoading] = useState(false);
   
   const { login, signup } = useAuth();
@@ -81,7 +86,12 @@ export default function Login() {
       } else {
         // Real Signup
         if (!name.trim()) throw new Error("Name is required");
-        const { error } = await signup(email, password, name, role);
+        
+        // Pass div/batch only if student
+        const divToSend = role === 'student' ? division : undefined;
+        const batchToSend = role === 'student' ? batch : undefined;
+
+        const { error } = await signup(email, password, name, role, divToSend, batchToSend);
         if (error) throw error;
         toast.success("Account created! Welcome to AcadFlow.");
         navigate('/dashboard');
@@ -207,42 +217,98 @@ export default function Login() {
                 required
               />
 
-              {/* Role Toggle (Only for Signup) */}
+              {/* Role Toggle + Div/Batch (Only for Signup) */}
               <AnimatePresence>
                 {!isLogin && (
                   <motion.div
                     initial={{ height: 0, opacity: 0, marginTop: 0 }}
                     animate={{ height: 'auto', opacity: 1, marginTop: 20 }}
                     exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                    className="overflow-hidden space-y-2"
+                    className="overflow-hidden space-y-4"
                   >
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Role</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setRole('student')}
-                        className={cn(
-                          "py-2 text-sm font-medium rounded-lg border transition-all",
-                          role === 'student' 
-                            ? "bg-blue-50 border-blue-200 text-blue-700" 
-                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                        )}
-                      >
-                        Student
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRole('teacher')}
-                        className={cn(
-                          "py-2 text-sm font-medium rounded-lg border transition-all",
-                          role === 'teacher' 
-                            ? "bg-blue-50 border-blue-200 text-blue-700" 
-                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                        )}
-                      >
-                        Teacher
-                      </button>
+                    {/* Role Selection */}
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Role</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setRole('student')}
+                          className={cn(
+                            "py-2 text-sm font-medium rounded-lg border transition-all",
+                            role === 'student' 
+                              ? "bg-blue-50 border-blue-200 text-blue-700" 
+                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                          )}
+                        >
+                          Student
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRole('teacher')}
+                          className={cn(
+                            "py-2 text-sm font-medium rounded-lg border transition-all",
+                            role === 'teacher' 
+                              ? "bg-blue-50 border-blue-200 text-blue-700" 
+                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                          )}
+                        >
+                          Teacher
+                        </button>
+                      </div>
                     </div>
+
+                    {/* Student Specific: Div & Batch */}
+                    {role === 'student' && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="grid grid-cols-2 gap-4"
+                      >
+                        {/* Division */}
+                        <div>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Division</p>
+                          <div className="flex gap-2">
+                            {['A', 'B'].map((d) => (
+                              <button
+                                key={d}
+                                type="button"
+                                onClick={() => setDivision(d as any)}
+                                className={cn(
+                                  "flex-1 py-2 text-sm font-bold rounded-lg border transition-all",
+                                  division === d 
+                                    ? "bg-indigo-50 border-indigo-200 text-indigo-700" 
+                                    : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                                )}
+                              >
+                                {d}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Batch */}
+                        <div>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Lab Batch</p>
+                          <div className="flex gap-2">
+                            {['A', 'B', 'C'].map((b) => (
+                              <button
+                                key={b}
+                                type="button"
+                                onClick={() => setBatch(b as any)}
+                                className={cn(
+                                  "flex-1 py-2 text-sm font-bold rounded-lg border transition-all",
+                                  batch === b 
+                                    ? "bg-indigo-50 border-indigo-200 text-indigo-700" 
+                                    : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                                )}
+                              >
+                                {b}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
