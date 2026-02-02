@@ -1,16 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RichTextEditor } from '@/components/editors/RichTextEditor';
 import { CodeEditor } from '@/components/editors/CodeEditor';
-import { 
-  getAssignmentById, 
-  getSubjectById, 
-  getSubmissionByAssignmentAndStudent 
-} from '@/data/mockData';
 import { 
   ArrowLeft, 
   Save, 
@@ -20,7 +16,8 @@ import {
   AlertCircle,
   FileText,
   Calendar,
-  ChevronLeft
+  ChevronLeft,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -31,67 +28,119 @@ export default function EditorPage() {
   const navigate = useNavigate();
   
   // State
+  const [loading, setLoading] = useState(true);
   const [content, setContent] = useState('');
+  
+  const [assignment, setAssignment] = useState<any>(null);
+  const [submission, setSubmission] = useState<any>(null);
+  
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isDirty, setIsDirty] = useState(false);
 
-  // Data Fetching
-  const assignment = assignmentId ? getAssignmentById(assignmentId) : undefined;
-  const subject = assignment ? getSubjectById(assignment.subjectId) : undefined;
-  const existingSubmission = assignment && user 
-    ? getSubmissionByAssignmentAndStudent(assignment.id, user.id)
-    : undefined;
-
-  // Initialize Data
+  // Refs for autosave interval
+  const contentRef = useRef(content); // Keep track of latest content for interval
+  
   useEffect(() => {
-    if (existingSubmission) {
-      setContent(existingSubmission.content);
-      setLastSaved(new Date(existingSubmission.lastSavedAt));
-    }
-  }, [existingSubmission]);
+    contentRef.current = content;
+  }, [content]);
 
-  // Logic: Autosave
-  const handleSave = useCallback(async () => {
-    if (!isDirty) return;
-    
-    setIsSaving(true);
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    const submissions = JSON.parse(localStorage.getItem('submissions') || '[]');
-    const existingIndex = submissions.findIndex(
-      (s: any) => s.assignmentId === assignmentId && s.studentId === user?.id
-    );
-    
-    const submissionData = {
-      id: existingSubmission?.id || `sub-${Date.now()}`,
-      assignmentId,
-      studentId: user?.id,
-      content,
-      status: 'draft',
-      lastSavedAt: new Date().toISOString(),
-    };
-    
-    if (existingIndex >= 0) {
-      submissions[existingIndex] = { ...submissions[existingIndex], ...submissionData };
-    } else {
-      submissions.push(submissionData);
+  // 1. Initial Data Fetch
+  useEffect(() => {
+    if (user && assignmentId) {
+      fetchData();
     }
-    
-    localStorage.setItem('submissions', JSON.stringify(submissions));
-    setLastSaved(new Date());
-    setIsDirty(false);
-    setIsSaving(false);
-    toast.success('Draft saved automatically');
-  }, [content, assignmentId, user?.id, existingSubmission?.id, isDirty]);
+  }, [user, assignmentId]);
 
-  // Logic: Interval Save
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+
+      // A. Fetch Assignment Details (joined with Subject)
+      const { data: assignData, error: assignError } = await supabase
+        .from('assignments')
+        .select('*, subjects(*)')
+        .eq('id', assignmentId)
+        .single();
+      
+      if (assignError) throw assignError;
+      setAssignment(assignData);
+
+      // B. Fetch Existing Submission (if any)
+      const { data: subData, error: subError } = await supabase
+        .from('submissions')
+        .select('*')
+        .eq('assignment_id', assignmentId)
+        .eq('student_id', user!.id)
+        .maybeSingle(); // maybeSingle returns null instead of error if not found
+
+      if (subError && subError.code !== 'PGRST116') throw subError;
+
+      if (subData) {
+        setSubmission(subData);
+        setContent(subData.content || '');
+        setLastSaved(subData.last_saved_at ? new Date(subData.last_saved_at) : null);
+      }
+      
+    } catch (error) {
+      console.error("Error fetching editor data:", error);
+      toast.error("Could not load assignment details");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2. Save Logic (Upsert)
+  const handleSave = useCallback(async (manual = false) => {
+    if (!user || !assignmentId) return;
+    
+    // If saving manually, proceed. If autosaving, only proceed if dirty.
+    if (!manual && !isDirty) return;
+
+    try {
+      setIsSaving(true);
+      const currentContent = contentRef.current;
+      const timestamp = new Date().toISOString();
+
+      const payload = {
+        assignment_id: assignmentId,
+        student_id: user.id,
+        content: currentContent,
+        last_saved_at: timestamp,
+        status: submission?.status === 'submitted' ? 'submitted' : 'draft' // Keep submitted if already submitted
+      };
+
+      // Upsert: Updates if exists (based on unique constraint student_id + assignment_id), inserts if new
+      const { data, error } = await supabase
+        .from('submissions')
+        .upsert(payload, { onConflict: 'assignment_id,student_id' })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setSubmission(data);
+      setLastSaved(new Date(timestamp));
+      setIsDirty(false);
+      
+      if (manual) toast.success('Draft saved successfully');
+
+    } catch (error) {
+      console.error("Save error:", error);
+      if (manual) toast.error("Failed to save draft");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [assignmentId, user, isDirty, submission]);
+
+  // 3. Interval Autosave (Every 30s)
   useEffect(() => {
     const interval = setInterval(() => {
-      if (isDirty) handleSave();
-    }, 30000);
+      if (isDirty) {
+        handleSave(false);
+      }
+    }, 30000); 
     return () => clearInterval(interval);
   }, [handleSave, isDirty]);
 
@@ -100,30 +149,50 @@ export default function EditorPage() {
     setIsDirty(true);
   };
 
-  // Logic: Submit
+  // 4. Submit Logic
   const handleSubmit = async () => {
     if (!window.confirm("Are you sure you want to submit? You won't be able to edit this afterwards.")) return;
 
     setIsSubmitting(true);
-    await handleSave(); // Final save
-    
-    const submissions = JSON.parse(localStorage.getItem('submissions') || '[]');
-    const existingIndex = submissions.findIndex(
-      (s: any) => s.assignmentId === assignmentId && s.studentId === user?.id
-    );
-    
-    if (existingIndex >= 0) {
-      submissions[existingIndex].status = 'submitted';
-      submissions[existingIndex].submittedAt = new Date().toISOString();
-      localStorage.setItem('submissions', JSON.stringify(submissions));
+    try {
+      // 1. Force a save first with status 'submitted'
+      const timestamp = new Date().toISOString();
+      
+      const { error } = await supabase
+        .from('submissions')
+        .upsert({
+          assignment_id: assignmentId,
+          student_id: user!.id,
+          content: content, // Use current state content
+          status: 'submitted',
+          submitted_at: timestamp,
+          last_saved_at: timestamp
+        }, { onConflict: 'assignment_id,student_id' });
+
+      if (error) throw error;
+
+      toast.success('Assignment submitted successfully!');
+      navigate('/dashboard/assignments');
+      
+    } catch (error) {
+      console.error("Submission error:", error);
+      toast.error("Failed to submit assignment");
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    setIsSubmitting(false);
-    toast.success('Assignment submitted successfully!');
-    navigate('/dashboard/assignments');
   };
 
-  if (!assignment || !subject || !user) {
+  // --- Render States ---
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (!assignment) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-center">
         <div className="h-12 w-12 bg-slate-100 rounded-full flex items-center justify-center mb-4">
@@ -140,12 +209,12 @@ export default function EditorPage() {
   // Computed Status
   const deadline = new Date(assignment.deadline);
   const isOverdue = deadline < new Date();
-  const isSubmitted = existingSubmission?.status === 'submitted';
-  const isEvaluated = existingSubmission?.status === 'evaluated';
+  const isSubmitted = submission?.status === 'submitted';
+  const isEvaluated = submission?.status === 'evaluated';
   const isReadOnly = isSubmitted || isEvaluated;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] -m-6 lg:-m-10"> {/* Negative margin to break out of main layout padding */}
+    <div className="flex flex-col h-[calc(100vh-4rem)] -m-6 lg:-m-10"> 
       
       {/* 1. Editor Toolbar (Sticky) */}
       <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shrink-0 z-20">
@@ -160,7 +229,7 @@ export default function EditorPage() {
             <h1 className="text-sm font-bold text-slate-800 flex items-center gap-2">
               {assignment.title}
               <Badge variant="outline" className="font-normal text-[10px] text-slate-500 bg-slate-50 border-slate-200">
-                {subject.code}
+                {assignment.subjects?.code}
               </Badge>
             </h1>
             <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
@@ -173,7 +242,9 @@ export default function EditorPage() {
               
               <span className={cn("flex items-center gap-1 transition-colors", isSaving ? "text-blue-600" : "text-slate-400")}>
                 {isSaving ? (
-                  <>Saving...</>
+                  <>
+                    <Loader2 size={12} className="animate-spin" /> Saving...
+                  </>
                 ) : (
                   <>
                     <Clock size={12} /> 
@@ -188,7 +259,7 @@ export default function EditorPage() {
         <div className="flex items-center gap-3">
           {/* Status Badges */}
           {isSubmitted && <Badge className="bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-50">Submitted</Badge>}
-          {isEvaluated && <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-50">Graded: {existingSubmission.marks}/{assignment.maxMarks}</Badge>}
+          {isEvaluated && <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-50">Graded: {submission.marks}/{assignment.max_marks}</Badge>}
 
           {/* Action Buttons */}
           {!isReadOnly && (
@@ -196,7 +267,7 @@ export default function EditorPage() {
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={handleSave} 
+                onClick={() => handleSave(true)} 
                 disabled={isSaving || !isDirty}
                 className="hidden sm:flex border-slate-200 text-slate-600 hover:bg-slate-50"
               >
@@ -226,7 +297,7 @@ export default function EditorPage() {
           <div className="p-6 space-y-6">
             
             {/* Feedback Card (If Exists) */}
-            {isEvaluated && existingSubmission.feedback && (
+            {isEvaluated && submission.feedback && (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -237,7 +308,7 @@ export default function EditorPage() {
                   <h3 className="text-sm font-bold text-emerald-800">Faculty Feedback</h3>
                 </div>
                 <p className="text-sm text-emerald-900 leading-relaxed">
-                  {existingSubmission.feedback}
+                  {submission.feedback}
                 </p>
               </motion.div>
             )}
@@ -247,11 +318,8 @@ export default function EditorPage() {
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                 <FileText size={14} /> Assignment Brief
               </h3>
-              <div className="prose prose-sm prose-slate max-w-none text-slate-600 leading-relaxed">
-                {/* We render description as paragraphs for now, could be HTML */}
-                {assignment.description.split('\n').map((para, i) => (
-                  <p key={i} className="mb-4">{para}</p>
-                ))}
+              <div className="prose prose-sm prose-slate max-w-none text-slate-600 leading-relaxed whitespace-pre-line">
+                {assignment.description || "No description provided."}
               </div>
             </div>
 
@@ -259,11 +327,11 @@ export default function EditorPage() {
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Subject</span>
-                <span className="font-medium text-slate-700">{subject.name}</span>
+                <span className="font-medium text-slate-700">{assignment.subjects?.name}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Max Points</span>
-                <span className="font-medium text-slate-700">{assignment.maxMarks}</span>
+                <span className="font-medium text-slate-700">{assignment.max_marks}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Format</span>
@@ -285,10 +353,10 @@ export default function EditorPage() {
                 <CodeEditor
                   content={content}
                   onChange={handleContentChange}
-                  language={assignment.programmingLanguage}
+                  language={assignment.programming_language || 'python'} // Fallback to python
                   readOnly={isReadOnly}
                   height="100%"
-                  filename={`solution.${assignment.programmingLanguage === 'python' ? 'py' : 'cpp'}`}
+                  filename={`solution.${assignment.programming_language === 'python' ? 'py' : 'cpp'}`}
                 />
               ) : (
                 <RichTextEditor
