@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { RichTextEditor } from '@/components/editors/RichTextEditor';
 import { CodeEditor } from '@/components/editors/CodeEditor';
 import { 
@@ -15,8 +13,19 @@ import {
   mockSubjects,
   mockStudents 
 } from '@/data/mockData';
-import { ArrowLeft, AlertTriangle, CheckCircle2, Save } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  AlertTriangle, 
+  CheckCircle2, 
+  Save, 
+  User, 
+  GraduationCap, 
+  ShieldAlert,
+  ChevronLeft
+} from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
 
 export default function EvaluatePage() {
   const { submissionId } = useParams<{ submissionId: string }>();
@@ -32,158 +41,198 @@ export default function EvaluatePage() {
   const [feedback, setFeedback] = useState(submission?.feedback || '');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Security Check
   if (!user || user.role === 'student' || !submission || !assignment) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Submission not found</p>
-        <Button variant="link" asChild>
-          <Link to="/submissions">Back to Submissions</Link>
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+        <div className="h-12 w-12 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+          <AlertTriangle className="text-slate-400" />
+        </div>
+        <p className="text-slate-500 font-medium">Submission record unavailable</p>
+        <Button variant="link" asChild className="mt-2 text-blue-600">
+          <Link to="/dashboard/submissions">Return to Submissions</Link>
         </Button>
       </div>
     );
   }
 
   const handleSaveEvaluation = async () => {
-    if (!marks || parseInt(marks) > assignment.maxMarks) {
-      toast.error('Please enter valid marks');
+    const numericMarks = parseInt(marks);
+    if (!marks || isNaN(numericMarks) || numericMarks < 0 || numericMarks > assignment.maxMarks) {
+      toast.error(`Please enter valid marks (0 - ${assignment.maxMarks})`);
       return;
     }
     
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 800)); // Simulate API
     
-    // In a real app, this would save to the database
+    // In real app: API call here
     toast.success('Evaluation saved successfully');
     setIsSaving(false);
-    navigate(`/submissions/${assignment.id}`);
+    navigate(`/dashboard/submissions`);
   };
 
+  const plagiarismRisk = (submission.plagiarismScore || 0) > 30 ? 'high' : (submission.plagiarismScore || 0) > 15 ? 'medium' : 'low';
+  
   return (
-    <div className="max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <Button variant="ghost" size="sm" className="mb-4" asChild>
-          <Link to={`/submissions/${assignment.id}`}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Submissions
-          </Link>
-        </Button>
-        
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">{assignment.title}</h1>
-            <p className="text-muted-foreground">{subject?.name} • {subject?.code}</p>
-          </div>
+    <div className="flex flex-col h-[calc(100vh-4rem)] -m-6 lg:-m-10 bg-slate-50/50">
+      
+      {/* 1. Grading Header (Sticky) */}
+      <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shrink-0 z-20">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-slate-800 -ml-2" asChild>
+            <Link to={`/dashboard/submissions`}>
+              <ChevronLeft size={22} />
+            </Link>
+          </Button>
           
-          {submission.status === 'evaluated' && (
-            <Badge className="bg-success/10 text-success flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3" />
-              Evaluated
-            </Badge>
-          )}
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-bold text-slate-900">{student?.name}</h1>
+              <span className="text-xs text-slate-400">• {student?.enrollmentNumber}</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">{assignment.title}</p>
+          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Submission Content */}
-        <div className="lg:col-span-2">
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-base">Student Submission</CardTitle>
-              <CardDescription>
-                Submitted by {student?.name} ({student?.enrollmentNumber})
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+        <div className="flex items-center gap-3">
+           <div className="hidden sm:flex items-center gap-2 mr-4">
+             <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Status:</span>
+             {submission.status === 'evaluated' ? (
+                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-50">Evaluated</Badge>
+             ) : (
+                <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-100">Pending Review</Badge>
+             )}
+           </div>
+           
+           <Button 
+             onClick={handleSaveEvaluation} 
+             disabled={isSaving}
+             className="bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20"
+           >
+             <CheckCircle2 className="h-4 w-4 mr-2" />
+             {isSaving ? 'Saving...' : 'Finalize Grade'}
+           </Button>
+        </div>
+      </header>
+
+      {/* 2. Main Split Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        
+        {/* LEFT: Student Work (Scrollable) */}
+        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+          <div className="max-w-4xl mx-auto space-y-6">
+            
+            {/* Student Meta Card */}
+            <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-4 shadow-sm">
+               <div className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">
+                  <User size={20} />
+               </div>
+               <div>
+                  <h3 className="text-sm font-bold text-slate-800">Submission Content</h3>
+                  <p className="text-xs text-slate-500">Submitted on {new Date(submission.submittedAt || new Date()).toLocaleString()}</p>
+               </div>
+            </div>
+
+            {/* The Actual Work */}
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
               {assignment.type === 'practical' ? (
                 <CodeEditor
                   content={submission.content}
-                  onChange={() => {}}
                   language={assignment.programmingLanguage}
                   readOnly
+                  height="600px"
+                  filename={`submission.${assignment.programmingLanguage === 'python' ? 'py' : 'cpp'}`}
                 />
               ) : (
                 <RichTextEditor
                   content={submission.content}
                   onChange={() => {}}
                   editable={false}
+                  minHeight="500px"
                 />
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
-        {/* Evaluation Panel */}
-        <div className="space-y-4">
-          {/* Plagiarism Report */}
-          {submission.plagiarismScore !== undefined && (
-            <Card className={submission.plagiarismScore > 30 ? 'border-destructive/50' : ''}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  {submission.plagiarismScore > 30 && (
-                    <AlertTriangle className="h-4 w-4 text-destructive" />
-                  )}
-                  Plagiarism Report
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-4">
-                  <p className={`text-4xl font-bold ${submission.plagiarismScore > 30 ? 'text-destructive' : submission.plagiarismScore > 15 ? 'text-warning' : 'text-success'}`}>
-                    {submission.plagiarismScore}%
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">Similarity Score</p>
+        {/* RIGHT: Grading Panel (Fixed Width) */}
+        <div className="w-[360px] bg-white border-l border-slate-200 flex flex-col shrink-0 overflow-y-auto shadow-xl z-10">
+          <div className="p-6 space-y-8">
+            
+            {/* 1. Plagiarism Score */}
+            <div className={cn(
+              "rounded-xl border p-4",
+              plagiarismRisk === 'high' ? "bg-red-50 border-red-100" : 
+              plagiarismRisk === 'medium' ? "bg-amber-50 border-amber-100" : 
+              "bg-emerald-50 border-emerald-100"
+            )}>
+               <div className="flex items-center gap-2 mb-3">
+                  <ShieldAlert size={18} className={cn(
+                    plagiarismRisk === 'high' ? "text-red-600" : 
+                    plagiarismRisk === 'medium' ? "text-amber-600" : 
+                    "text-emerald-600"
+                  )} />
+                  <span className="text-sm font-bold text-slate-800">Plagiarism Check</span>
+               </div>
+               
+               <div className="flex items-end gap-2">
+                 <span className={cn(
+                   "text-3xl font-extrabold",
+                   plagiarismRisk === 'high' ? "text-red-700" : 
+                   plagiarismRisk === 'medium' ? "text-amber-700" : 
+                   "text-emerald-700"
+                 )}>
+                   {submission.plagiarismScore}%
+                 </span>
+                 <span className="text-xs font-medium text-slate-500 mb-1.5">Similarity Score</span>
+               </div>
+               
+               {plagiarismRisk === 'high' && (
+                 <p className="text-xs text-red-600 mt-2 font-medium bg-white/50 p-2 rounded">
+                   High risk detected. Review matched sources manually.
+                 </p>
+               )}
+            </div>
+
+            {/* 2. Marks Input */}
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <GraduationCap size={14} /> Grading
+              </label>
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1">
+                   <Input 
+                      type="number" 
+                      value={marks}
+                      onChange={(e) => setMarks(e.target.value)}
+                      className="h-12 text-lg font-bold pl-4 pr-12"
+                      placeholder="0"
+                   />
+                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">
+                     / {assignment.maxMarks}
+                   </span>
                 </div>
-                {submission.plagiarismScore > 15 && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    Matched with other submissions in this assignment
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            </div>
 
-          {/* Marks & Feedback */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Evaluation</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="marks">Marks (out of {assignment.maxMarks})</Label>
-                <Input
-                  id="marks"
-                  type="number"
-                  min="0"
-                  max={assignment.maxMarks}
-                  value={marks}
-                  onChange={(e) => setMarks(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="feedback">Feedback</Label>
-                <Textarea
-                  id="feedback"
-                  placeholder="Provide feedback for the student..."
-                  value={feedback}
-                  onChange={(e) => setFeedback(e.target.value)}
-                  rows={5}
-                  className="mt-1"
-                />
-              </div>
-              
-              <Button 
-                className="w-full" 
-                onClick={handleSaveEvaluation}
-                disabled={isSaving}
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {isSaving ? 'Saving...' : 'Save Evaluation'}
-              </Button>
-            </CardContent>
-          </Card>
+            {/* 3. Feedback Input */}
+            <div className="flex-1 flex flex-col">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                Detailed Feedback
+              </label>
+              <Textarea 
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                placeholder="Write constructive feedback for the student..."
+                className="flex-1 min-h-[200px] resize-none p-4 text-sm leading-relaxed"
+              />
+              <p className="text-xs text-slate-400 mt-2 text-right">Markdown supported</p>
+            </div>
+
+          </div>
         </div>
+
       </div>
     </div>
   );

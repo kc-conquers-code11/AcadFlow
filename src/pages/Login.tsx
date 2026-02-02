@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, ArrowRight, BookOpen, ShieldCheck, Microscope, ChevronRight } from 'lucide-react';
+import { 
+  GraduationCap, 
+  ArrowRight, 
+  BookOpen, 
+  ShieldCheck, 
+  Microscope, 
+  User, 
+  Mail, 
+  Lock, 
+  Loader2 
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 // --- Visual Components ---
 
@@ -29,7 +40,7 @@ const CleanInput = ({ label, ...props }: any) => {
   return (
     <div className="group relative">
       <label className={cn(
-        "absolute left-3 transition-all duration-200 pointer-events-none text-slate-500 bg-white px-1",
+        "absolute left-3 transition-all duration-200 pointer-events-none text-slate-500 bg-white px-1 z-10",
         focused || props.value ? "-top-2.5 text-xs text-blue-600 font-semibold" : "top-3 text-sm"
       )}>
         {label}
@@ -38,37 +49,56 @@ const CleanInput = ({ label, ...props }: any) => {
         {...props}
         onFocus={() => setFocused(true)}
         onBlur={(e) => setFocused(e.target.value !== '')}
-        className="w-full h-12 px-4 bg-white border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm group-hover:border-slate-300"
+        className="w-full h-12 px-4 bg-white border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm group-hover:border-slate-300 placeholder:text-transparent"
       />
     </div>
   );
 };
 
 export default function Login() {
+  // Logic State
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [role, setRole] = useState<'student' | 'teacher'>('student');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  
+  const { login, signup } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(async () => {
-      try {
-        await login(email, password);
+
+    try {
+      if (isLogin) {
+        // Real Login
+        const { error } = await login(email, password);
+        if (error) throw error;
+        toast.success("Welcome back!");
         navigate('/dashboard');
-      } catch (error) {
-        setIsLoading(false);
+      } else {
+        // Real Signup
+        if (!name.trim()) throw new Error("Name is required");
+        const { error } = await signup(email, password, name, role);
+        if (error) throw error;
+        toast.success("Account created! Welcome to AcadFlow.");
+        navigate('/dashboard');
       }
-    }, 1000);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Authentication failed");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-slate-50/50 flex flex-col relative overflow-hidden font-sans selection:bg-blue-100 selection:text-blue-900">
       <GridPattern />
       
-      {/* Abstract Gradient Orbs for subtle color - purely atmospheric */}
+      {/* Abstract Gradient Orbs */}
       <div className="absolute top-[-10%] left-[-5%] w-[30%] h-[30%] bg-blue-100/50 rounded-full blur-[100px]" />
       <div className="absolute bottom-[-10%] right-[-5%] w-[30%] h-[30%] bg-indigo-100/50 rounded-full blur-[100px]" />
 
@@ -89,7 +119,7 @@ export default function Login() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col md:flex-row items-center justify-center max-w-6xl mx-auto w-full px-6 gap-12 lg:gap-24">
         
-        {/* Left: The "Pitch" - Clean and Editorial */}
+        {/* Left: The "Pitch" */}
         <div className="flex-1 space-y-8 text-center md:text-left pt-10 md:pt-0">
           <div className="space-y-4">
             <motion.h1 
@@ -120,7 +150,7 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Right: The "Ceramic" Card */}
+        {/* Right: The "Ceramic" Form Card */}
         <motion.div 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -132,61 +162,130 @@ export default function Login() {
           
           <div className="relative bg-white rounded-xl shadow-2xl shadow-slate-200/50 p-8 border border-slate-100">
             <div className="mb-8">
-              <h2 className="text-xl font-bold text-slate-900">Sign in</h2>
-              <p className="text-slate-500 text-sm mt-1">Computer Engineering Department</p>
+              <h2 className="text-xl font-bold text-slate-900">
+                {isLogin ? "Sign in" : "Create Account"}
+              </h2>
+              <p className="text-slate-500 text-sm mt-1">
+                {isLogin ? "Computer Engineering Department" : "Join the academic portal"}
+              </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-5">
-                <CleanInput 
-                  label="Institutional Email"
-                  type="email" 
-                  value={email}
-                  onChange={(e: any) => setEmail(e.target.value)}
-                  required
-                />
-                <CleanInput 
-                  label="Password"
-                  type="password" 
-                  value={password}
-                  onChange={(e: any) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              
+              {/* Name Field (Only for Signup) */}
+              <AnimatePresence>
+                {!isLogin && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <CleanInput 
+                      label="Full Name"
+                      type="text" 
+                      value={name}
+                      onChange={(e: any) => setName(e.target.value)}
+                      required={!isLogin}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-              <div className="flex items-center justify-between text-xs">
-                <label className="flex items-center gap-2 cursor-pointer text-slate-600">
-                  <input type="checkbox" className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                  Remember device
-                </label>
-                <a href="#" className="font-semibold text-blue-600 hover:text-blue-700">Forgot credentials?</a>
-              </div>
+              <CleanInput 
+                label="Institutional Email"
+                type="email" 
+                value={email}
+                onChange={(e: any) => setEmail(e.target.value)}
+                required
+              />
+              <CleanInput 
+                label="Password"
+                type="password" 
+                value={password}
+                onChange={(e: any) => setPassword(e.target.value)}
+                required
+              />
+
+              {/* Role Toggle (Only for Signup) */}
+              <AnimatePresence>
+                {!isLogin && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                    animate={{ height: 'auto', opacity: 1, marginTop: 20 }}
+                    exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                    className="overflow-hidden space-y-2"
+                  >
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Role</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setRole('student')}
+                        className={cn(
+                          "py-2 text-sm font-medium rounded-lg border transition-all",
+                          role === 'student' 
+                            ? "bg-blue-50 border-blue-200 text-blue-700" 
+                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                        )}
+                      >
+                        Student
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRole('teacher')}
+                        className={cn(
+                          "py-2 text-sm font-medium rounded-lg border transition-all",
+                          role === 'teacher' 
+                            ? "bg-blue-50 border-blue-200 text-blue-700" 
+                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                        )}
+                      >
+                        Teacher
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {isLogin && (
+                <div className="flex items-center justify-between text-xs">
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-600">
+                    <input type="checkbox" className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                    Remember device
+                  </label>
+                  <a href="#" className="font-semibold text-blue-600 hover:text-blue-700">Forgot credentials?</a>
+                </div>
+              )}
 
               <Button 
                 type="submit" 
                 disabled={isLoading}
                 className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg transition-all hover:shadow-lg hover:shadow-slate-900/20 flex items-center justify-center gap-2 group/btn"
               >
-                {isLoading ? "Authenticating..." : (
+                {isLoading ? (
                   <>
-                    Access Portal <ArrowRight size={16} className="group-hover/btn:translate-x-0.5 transition-transform" />
+                    <Loader2 size={16} className="animate-spin" /> Processing...
+                  </>
+                ) : (
+                  <>
+                    {isLogin ? "Access Portal" : "Create Account"} 
+                    <ArrowRight size={16} className="group-hover/btn:translate-x-0.5 transition-transform" />
                   </>
                 )}
               </Button>
             </form>
 
-            <div className="mt-8 pt-6 border-t border-slate-100">
-              <p className="text-xs text-center text-slate-400 font-medium uppercase tracking-wider mb-3">Quick Access (Demo)</p>
-              <div className="grid grid-cols-3 gap-2">
-                {['Student', 'Teacher', 'Admin'].map((role) => (
-                  <button 
-                    key={role}
-                    className="px-2 py-2 text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded hover:bg-white hover:border-blue-200 hover:text-blue-600 transition-all"
-                  >
-                    {role}
-                  </button>
-                ))}
-              </div>
+            <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+              <p className="text-sm text-slate-500">
+                {isLogin ? "First time here? " : "Already registered? "}
+                <button 
+                  type="button"
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  {isLogin ? "Create an account" : "Sign in"}
+                </button>
+              </p>
             </div>
           </div>
           
