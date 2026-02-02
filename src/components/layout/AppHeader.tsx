@@ -23,7 +23,7 @@ import { UserRole } from '@/types';
 import { cn } from '@/lib/utils';
 
 export function AppHeader() {
-  const { user, switchRole, logout } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
 
   if (!user) return null;
@@ -82,34 +82,7 @@ export function AppHeader() {
 
         <div className="h-6 w-px bg-slate-200 mx-1" />
 
-        {/* Role Switcher (Demo Feature) */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all hover:shadow-sm outline-none",
-              roleStyles[user.role]
-            )}>
-              <span className="uppercase tracking-wider">{user.role}</span>
-              <ChevronsUpDown size={12} className="opacity-50" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 p-2">
-            <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
-              Demo: Switch Role
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {(['student', 'teacher', 'hod'] as UserRole[]).map((role) => (
-              <DropdownMenuItem 
-                key={role} 
-                onClick={() => switchRole(role)}
-                className="text-xs font-medium cursor-pointer py-2 focus:bg-slate-50"
-              >
-                <span className="capitalize flex-1">{role}</span>
-                {user.role === role && <Check size={14} className="text-indigo-600" />}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+      
 
         {/* User Profile */}
         <DropdownMenu>

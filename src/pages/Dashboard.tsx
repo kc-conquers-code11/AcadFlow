@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { 
   FileText, 
   CheckCircle2, 
@@ -9,31 +11,14 @@ import {
   Users,
   TrendingUp,
   ArrowUpRight,
-  MoreHorizontal,
-  GraduationCap,
-  ShieldAlert
+  Loader2
 } from 'lucide-react';
-import { mockSubjects, mockAssignments, mockSubmissions } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 // --- Visual Assets ---
-const GridPattern = () => (
-  <div className="absolute inset-0 -z-10 h-full w-full bg-slate-50 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-60" />
-);
-
-// --- Sub-Components ---
-
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ElementType;
-  color: string; // Tailwind color classes e.g. "text-blue-600 bg-blue-50"
-  trend?: string;
-  delay?: number;
-}
-
-const StatCard = ({ title, value, icon: Icon, color, trend, delay = 0 }: StatCardProps) => (
+const StatCard = ({ title, value, icon: Icon, color, trend, delay = 0 }: any) => (
   <motion.div 
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -57,12 +42,12 @@ const StatCard = ({ title, value, icon: Icon, color, trend, delay = 0 }: StatCar
   </motion.div>
 );
 
-const SectionHeader = ({ title, action }: { title: string, action?: string }) => (
+const SectionHeader = ({ title, action, link }: { title: string, action?: string, link?: string }) => (
   <div className="flex items-center justify-between mb-4">
     <h2 className="text-lg font-bold text-slate-800">{title}</h2>
-    {action && (
-      <Button variant="ghost" size="sm" className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50">
-        {action} <ArrowUpRight size={14} className="ml-1" />
+    {action && link && (
+      <Button variant="ghost" size="sm" className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50" asChild>
+        <Link to={link}>{action} <ArrowUpRight size={14} className="ml-1" /></Link>
       </Button>
     )}
   </div>
@@ -93,214 +78,199 @@ const ActivityItem = ({ title, subtitle, time, status, icon: Icon, color }: any)
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  
+  // Dashboard State
+  const [stats, setStats] = useState({
+    totalSubjects: 0,
+    totalAssignments: 0,
+    pendingCount: 0,
+    submittedCount: 0,
+    evaluatedCount: 0
+  });
+
+  const [recentAssignments, setRecentAssignments] = useState<any[]>([]);
+  const [recentSubmissions, setRecentSubmissions] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user) fetchData();
+  }, [user]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      if (user?.role === 'student') {
+        // 1. Fetch Assignments (Simulating enrolled subjects by fetching all for MVP)
+        const { data: assignments } = await supabase
+          .from('assignments')
+          .select('*, subjects(name, code)')
+          .gt('deadline', new Date().toISOString())
+          .order('deadline', { ascending: true })
+          .limit(5);
+
+        // 2. Fetch My Submissions
+        const { data: submissions, count: subCount } = await supabase
+          .from('submissions')
+          .select('*, assignments(title)', { count: 'exact' })
+          .eq('student_id', user.id);
+
+        // 3. Calc Stats
+        const evaluated = submissions?.filter(s => s.status === 'evaluated').length || 0;
+        const pending = assignments?.length || 0; // Rough logic for MVP
+
+        setRecentAssignments(assignments || []);
+        setRecentSubmissions(submissions?.slice(0, 5) || []);
+        setStats({
+          totalSubjects: 0, 
+          totalAssignments: 0,
+          pendingCount: pending,
+          submittedCount: subCount || 0,
+          evaluatedCount: evaluated
+        });
+
+      } else {
+        // --- TEACHER / HOD LOGIC ---
+        
+        // 1. Fetch My Subjects/Assignments
+        const { count: subCount } = await supabase.from('subjects').select('*', { count: 'exact', head: true });
+        const { count: assignCount } = await supabase.from('assignments').select('*', { count: 'exact', head: true });
+        
+        // 2. Fetch Pending Reviews
+        const { data: pendingSubs, count: pendingRevCount } = await supabase
+          .from('submissions')
+          .select('*, assignments(title), profiles(name, enrollment_number)')
+          .eq('status', 'submitted')
+          .limit(5);
+
+        // 3. Fetch Plagiarism Risks
+        const { data: riskySubs, count: riskCount } = await supabase
+          .from('submissions')
+          .select('*')
+          .gt('plagiarism_score', 20);
+
+        setRecentSubmissions(pendingSubs || []);
+        setStats({
+          totalSubjects: subCount || 0,
+          totalAssignments: assignCount || 0,
+          pendingCount: pendingRevCount || 0,
+          submittedCount: 0,
+          evaluatedCount: 0
+        });
+      }
+    } catch (error) {
+      console.error("Dashboard fetch error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!user) return null;
 
-  // --- Calculations ---
-  const pendingAssignments = mockAssignments.filter(a => new Date(a.deadline) > new Date()).length;
-  const submittedCount = mockSubmissions.filter(s => s.status === 'submitted').length;
-  const evaluatedCount = mockSubmissions.filter(s => s.status === 'evaluated').length;
-  
-  // --- Render Logic ---
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] w-full items-center justify-center">
+         <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+      </div>
+    );
+  }
 
+  // --- Render Student View ---
   const renderStudentDashboard = () => (
     <>
-      {/* Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard 
-          title="Pending Tasks" 
-          value={pendingAssignments} 
-          icon={Clock} 
-          color="text-amber-600 bg-amber-50" 
-          delay={0.1}
-        />
-        <StatCard 
-          title="Submitted" 
-          value={submittedCount} 
-          icon={CheckCircle2} 
-          color="text-blue-600 bg-blue-50" 
-          delay={0.2}
-        />
-        <StatCard 
-          title="Avg. Score" 
-          value="82%" 
-          icon={TrendingUp} 
-          color="text-emerald-600 bg-emerald-50" 
-          trend="+4% this sem"
-          delay={0.3}
-        />
-        <StatCard 
-          title="Attendance" 
-          value="94%" 
-          icon={Users} 
-          color="text-violet-600 bg-violet-50" 
-          delay={0.4}
-        />
+        <StatCard title="Pending Tasks" value={stats.pendingCount} icon={Clock} color="text-amber-600 bg-amber-50" delay={0.1} />
+        <StatCard title="Submitted" value={stats.submittedCount} icon={CheckCircle2} color="text-blue-600 bg-blue-50" delay={0.2} />
+        <StatCard title="Graded" value={stats.evaluatedCount} icon={TrendingUp} color="text-emerald-600 bg-emerald-50" delay={0.3} />
+        <StatCard title="Attendance" value="94%" icon={Users} color="text-violet-600 bg-violet-50" delay={0.4} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Deadlines Column */}
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.5 }}
-          className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm"
-        >
-          <SectionHeader title="Upcoming Deadlines" action="View Calendar" />
+        {/* Deadlines */}
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <SectionHeader title="Upcoming Deadlines" action="View All" link="/assignments" />
           <div className="space-y-1">
-            {mockAssignments
-              .filter(a => new Date(a.deadline) > new Date())
-              .slice(0, 4)
-              .map(assignment => {
-                const subject = mockSubjects.find(s => s.id === assignment.subjectId);
+            {recentAssignments.length === 0 ? (
+              <p className="text-sm text-slate-400 italic">No upcoming deadlines.</p>
+            ) : (
+              recentAssignments.map(assignment => {
                 const daysLeft = Math.ceil((new Date(assignment.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
                 return (
                   <ActivityItem 
                     key={assignment.id}
                     title={assignment.title}
-                    subtitle={`${subject?.name} • ${subject?.code}`}
+                    subtitle={`${assignment.subjects?.name} • ${assignment.subjects?.code}`}
                     time={`${daysLeft} days left`}
                     icon={FileText}
                     color={daysLeft <= 2 ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-500"}
                   />
                 );
-              })}
+              })
+            )}
           </div>
         </motion.div>
 
-        {/* Recent Activity Column */}
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.6 }}
-          className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm"
-        >
-          <SectionHeader title="Recent Activity" />
+        {/* Recent Submissions */}
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <SectionHeader title="Your Submissions" />
           <div className="space-y-1">
-            {mockSubmissions.slice(0, 4).map(submission => {
-              const assignment = mockAssignments.find(a => a.id === submission.assignmentId);
-              return (
+            {recentSubmissions.length === 0 ? (
+               <p className="text-sm text-slate-400 italic">No submissions yet.</p>
+            ) : (
+              recentSubmissions.map(submission => (
                 <ActivityItem 
                   key={submission.id}
-                  title={`Submitted: ${assignment?.title}`}
+                  title={`Submitted: ${submission.assignments?.title}`}
                   subtitle={submission.status === 'evaluated' ? 'Graded • Check feedback' : 'Waiting for review'}
-                  time={new Date(submission.lastSavedAt).toLocaleDateString()}
+                  time={new Date(submission.submitted_at || submission.created_at).toLocaleDateString()}
                   icon={CheckCircle2}
                   color="bg-emerald-50 text-emerald-600"
                 />
-              );
-            })}
+              ))
+            )}
           </div>
         </motion.div>
       </div>
     </>
   );
 
+  // --- Render Teacher View ---
   const renderTeacherDashboard = () => (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard 
-          title="Subjects" 
-          value={mockSubjects.length} 
-          icon={BookOpen} 
-          color="text-indigo-600 bg-indigo-50" 
-          delay={0.1}
-        />
-        <StatCard 
-          title="Assignments" 
-          value={mockAssignments.length} 
-          icon={FileText} 
-          color="text-slate-600 bg-slate-100" 
-          delay={0.2}
-        />
-        <StatCard 
-          title="Pending Review" 
-          value={submittedCount} 
-          icon={Clock} 
-          color="text-amber-600 bg-amber-50" 
-          delay={0.3}
-        />
-        <StatCard 
-          title="Plagiarism Alerts" 
-          value={2} 
-          icon={AlertCircle} 
-          color="text-red-600 bg-red-50" 
-          delay={0.4}
-        />
+        <StatCard title="Total Subjects" value={stats.totalSubjects} icon={BookOpen} color="text-indigo-600 bg-indigo-50" delay={0.1} />
+        <StatCard title="Total Assignments" value={stats.totalAssignments} icon={FileText} color="text-slate-600 bg-slate-100" delay={0.2} />
+        <StatCard title="Pending Review" value={stats.pendingCount} icon={Clock} color="text-amber-600 bg-amber-50" delay={0.3} />
+        <StatCard title="Plagiarism Alerts" value={0} icon={AlertCircle} color="text-red-600 bg-red-50" delay={0.4} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Feed (2 cols) */}
         <div className="lg:col-span-2 space-y-8">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm"
-          >
-            <SectionHeader title="Needs Evaluation" action="Start Grading" />
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <SectionHeader title="Needs Evaluation" action="View All" link="/submissions" />
             <div className="space-y-1">
-              {mockSubmissions
-                .filter(s => s.status === 'submitted')
-                .slice(0, 5)
-                .map(submission => {
-                  const assignment = mockAssignments.find(a => a.id === submission.assignmentId);
-                  return (
-                    <ActivityItem 
-                      key={submission.id}
-                      title={assignment?.title}
-                      subtitle={`Student ID: ${submission.studentId}`}
-                      time="Submitted 2h ago"
-                      icon={FileText}
-                      color="bg-blue-50 text-blue-600"
-                    />
-                  );
-                })}
+              {recentSubmissions.length === 0 ? (
+                <p className="text-sm text-slate-400 italic">All caught up! No pending reviews.</p>
+              ) : (
+                recentSubmissions.map(submission => (
+                  <ActivityItem 
+                    key={submission.id}
+                    title={submission.assignments?.title}
+                    subtitle={`Student: ${submission.profiles?.name || 'Unknown'}`}
+                    time="Submitted recently"
+                    icon={FileText}
+                    color="bg-blue-50 text-blue-600"
+                  />
+                ))
+              )}
             </div>
           </motion.div>
         </div>
-
-        {/* Side Panel (1 col) - Plagiarism */}
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="bg-white rounded-2xl border border-red-100 p-6 shadow-sm"
-        >
-          <div className="flex items-center gap-2 mb-6">
-            <ShieldAlert className="text-red-600" size={20} />
-            <h2 className="text-lg font-bold text-slate-800">Risk Analysis</h2>
-          </div>
-          
-          <div className="space-y-4">
-            {mockSubmissions
-              .filter(s => s.plagiarismScore && s.plagiarismScore > 10)
-              .slice(0, 3)
-              .map(submission => {
-                const assignment = mockAssignments.find(a => a.id === submission.assignmentId);
-                return (
-                  <div key={submission.id} className="p-3 bg-red-50/50 rounded-xl border border-red-100">
-                     <div className="flex justify-between items-start mb-1">
-                        <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
-                          {submission.plagiarismScore}% Match
-                        </span>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400 hover:text-red-700 -mt-1 -mr-1">
-                           <MoreHorizontal size={14} />
-                        </Button>
-                     </div>
-                     <p className="text-sm font-semibold text-slate-800 mt-2 truncate">{assignment?.title}</p>
-                     <p className="text-xs text-slate-500">Student: {submission.studentId}</p>
-                  </div>
-                );
-              })}
-          </div>
-        </motion.div>
       </div>
     </>
   );
 
   return (
     <div className="relative min-h-screen pb-20">
-      <GridPattern />
-      
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h1>
@@ -313,10 +283,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {user.role === 'student' && renderStudentDashboard()}
-      {user.role === 'teacher' && renderTeacherDashboard()}
-      {/* HOD dashboard can reuse the Teacher Layout structure */}
-      {user.role === 'hod' && renderTeacherDashboard()} 
+      {user.role === 'student' ? renderStudentDashboard() : renderTeacherDashboard()}
     </div>
   );
 }
