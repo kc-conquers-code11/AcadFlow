@@ -1,52 +1,16 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import {
-  Plus,
-  MoreHorizontal,
-  Calendar,
-  FileText,
-  Beaker,
-  Users,
-  CheckCircle2,
-  Clock
-} from 'lucide-react';
-
-// Reuse Modal for Create/Edit
+import { Input } from '@/components/ui/input';
+import { ArrowLeft, Loader2, Plus, BookOpen, FileText, Search } from 'lucide-react';
+import { BatchPracticalsTable } from '@/components/teacher/BatchPracticalsTable';
+import { BatchAssignmentsTable } from '@/components/teacher/BatchAssignmentsTable';
 import { BatchTaskModal, BatchTaskFormValues } from '@/components/teacher/BatchTaskModal';
-<<<<<<< HEAD
-=======
 import { CopyToBatchModal } from '@/components/teacher/CopyToBatchModal';
 import type { BatchTaskRow } from '@/components/teacher/BatchPracticalsTable';
 import type { BatchAssignment, BatchPractical } from '@/types/database';
->>>>>>> c291dc7e96c6770cf6af9b90c71d91d6a370e112
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,19 +21,64 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { toast } from 'sonner';
 
-// Types
-export interface BatchTaskRow {
-  id: string;
-  title: string;
-  description: string;
-  submittedCount: number;
-  totalStudents: number;
-  submittedPercent: number;
-  deadline?: string;
+/** Convert ISO deadline from DB to datetime-local input value (local time) */
+function toLocalDateTimeInput(iso: string): string {
+  const d = new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${day}T${h}:${min}`;
+}
+
+/** Convert datetime-local value to ISO for Supabase */
+function deadlineToISO(local: string): string {
+  return new Date(local).toISOString();
 }
 
 const MOCK_TOTAL_STUDENTS = 30;
+
+function mapPracticalToRow(row: BatchPractical): BatchTaskRow {
+  const total = MOCK_TOTAL_STUDENTS;
+  const submittedCount = 0;
+  const pct = total ? Math.round((submittedCount / total) * 100) : 0;
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description ?? '',
+    submittedCount,
+    totalStudents: total,
+    submittedPercent: pct,
+    deadline: row.deadline,
+    practicalMode: row.practical_mode,
+  };
+}
+
+function mapAssignmentToRow(row: BatchAssignment): BatchTaskRow {
+  const total = MOCK_TOTAL_STUDENTS;
+  const submittedCount = 0;
+  const pct = total ? Math.round((submittedCount / total) * 100) : 0;
+  const quizQuestions = (row.quiz_questions ?? []).map((q) => ({
+    question: q.question,
+    options: q.options ?? [],
+    correctIndex: q.correct_index ?? 0,
+  }));
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description ?? '',
+    submittedCount,
+    totalStudents: total,
+    submittedPercent: pct,
+    deadline: row.deadline,
+    quizQuestions,
+  };
+}
 
 function toRow(
   form: BatchTaskFormValues,
@@ -87,82 +96,238 @@ function toRow(
     totalStudents: total,
     submittedPercent: pct,
     deadline: form.deadline || existingRow?.deadline,
+    quizQuestions: form.quizQuestions,
+    practicalMode: form.practicalMode,
   };
+}
+
+/** Normalize division/batch from URL to DB enum values */
+function normalizeDivision(division: string): 'A' | 'B' | null {
+  const d = division?.toUpperCase();
+  return d === 'A' || d === 'B' ? d : null;
+}
+function normalizeBatch(batch: string): 'A' | 'B' | 'C' | null {
+  const b = batch?.toUpperCase();
+  return b === 'A' || b === 'B' || b === 'C' ? b : null;
 }
 
 export default function BatchDashboard() {
   const { division, batch } = useParams<{ division: string; batch: string }>();
   const { user } = useAuth();
-
-  // State
-  const [activeTab, setActiveTab] = useState<'practicals' | 'assignments'>('practicals');
   const [practicals, setPracticals] = useState<BatchTaskRow[]>([]);
   const [assignments, setAssignments] = useState<BatchTaskRow[]>([]);
-
-  // Modal State
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<'practical' | 'assignment'>('practical');
   const [editingRow, setEditingRow] = useState<BatchTaskRow | null>(null);
-<<<<<<< HEAD
-=======
   const [deleteTarget, setDeleteTarget] = useState<{ row: BatchTaskRow; type: 'practical' | 'assignment' } | null>(null);
   const [copyTarget, setCopyTarget] = useState<{ row: BatchTaskRow; type: 'practical' | 'assignment' } | null>(null);
   const [copying, setCopying] = useState(false);
->>>>>>> c291dc7e96c6770cf6af9b90c71d91d6a370e112
+  const [activeTab, setActiveTab] = useState('practicals');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Delete Dialog State
-  const [deleteTarget, setDeleteTarget] = useState<BatchTaskRow | null>(null);
+  const divNorm = normalizeDivision(division ?? '');
+  const batchNorm = normalizeBatch(batch ?? '');
+
+  const fetchData = useCallback(async () => {
+    if (!user?.id || !divNorm || !batchNorm) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const [practicalsRes, assignmentsRes] = await Promise.all([
+        supabase
+          .from('batch_practicals')
+          .select('*')
+          .eq('division', divNorm)
+          .eq('batch', batchNorm)
+          .eq('created_by', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('batch_assignments')
+          .select('*')
+          .eq('division', divNorm)
+          .eq('batch', batchNorm)
+          .eq('created_by', user.id)
+          .order('created_at', { ascending: false }),
+      ]);
+      if (practicalsRes.error) throw practicalsRes.error;
+      if (assignmentsRes.error) throw assignmentsRes.error;
+      setPracticals((practicalsRes.data ?? []).map(mapPracticalToRow));
+      setAssignments((assignmentsRes.data ?? []).map(mapAssignmentToRow));
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to load batch data');
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, divNorm, batchNorm]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const filteredPracticals = useMemo(() => {
+    if (!searchQuery) return practicals;
+    const lower = searchQuery.toLowerCase();
+    return practicals.filter(p =>
+      p.title.toLowerCase().includes(lower) ||
+      p.description.toLowerCase().includes(lower)
+    );
+  }, [practicals, searchQuery]);
+
+  const filteredAssignments = useMemo(() => {
+    if (!searchQuery) return assignments;
+    const lower = searchQuery.toLowerCase();
+    return assignments.filter(a =>
+      a.title.toLowerCase().includes(lower) ||
+      a.description.toLowerCase().includes(lower)
+    );
+  }, [assignments, searchQuery]);
 
   if (!user) return null;
-  if (!division || !batch) return null;
+  if (!division || !batch) {
+    return (
+      <div className="py-10 text-muted-foreground">
+        Missing division or batch. <Link to="/batches" className="text-primary underline">Back to Batches</Link>
+      </div>
+    );
+  }
 
-  const divisionLabel = `Division ${division.toUpperCase()}`;
+  const divisionLabel = `Div ${division.toUpperCase()}`;
   const batchLabel = `Batch ${batch.toUpperCase()}`;
 
-  // Actions
-  const openCreate = useCallback(() => {
+  const openAddPractical = useCallback(() => {
     setEditingRow(null);
+    setModalType('practical');
+    setModalOpen(true);
+  }, []);
+  const openAddAssignment = useCallback(() => {
+    setEditingRow(null);
+    setModalType('assignment');
     setModalOpen(true);
   }, []);
 
-  const openEdit = useCallback((row: BatchTaskRow) => {
-    setEditingRow(row);
-    setModalOpen(true);
-  }, []);
-
-  const openDelete = useCallback((row: BatchTaskRow) => {
-    setDeleteTarget(row);
-  }, []);
-
-  const confirmDelete = useCallback(() => {
-    if (!deleteTarget) return;
+  const handleAddClick = useCallback(() => {
     if (activeTab === 'practicals') {
-      setPracticals((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+      openAddPractical();
     } else {
-      setAssignments((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+      openAddAssignment();
     }
-    setDeleteTarget(null);
-  }, [deleteTarget, activeTab]);
+  }, [activeTab, openAddPractical, openAddAssignment]);
+
+  const openEditPractical = useCallback((row: BatchTaskRow) => {
+    setEditingRow(row);
+    setModalType('practical');
+    setModalOpen(true);
+  }, []);
+  const openEditAssignment = useCallback((row: BatchTaskRow) => {
+    setEditingRow(row);
+    setModalType('assignment');
+    setModalOpen(true);
+  }, []);
 
   const handleSave = useCallback(
-    (values: BatchTaskFormValues) => {
-      const id = editingRow?.id || `${activeTab}-${Date.now()}`;
-      const row = toRow(values, id, editingRow?.submittedCount ?? 0, editingRow ?? undefined);
-
-      if (activeTab === 'practicals') {
-        setPracticals((prev) => editingRow ? prev.map((p) => (p.id === editingRow.id ? row : p)) : [...prev, row]);
-      } else {
-        setAssignments((prev) => editingRow ? prev.map((a) => (a.id === editingRow.id ? row : a)) : [...prev, row]);
+    async (values: BatchTaskFormValues) => {
+      if (!user?.id || !divNorm || !batchNorm) return;
+      setSaving(true);
+      try {
+        const deadlineISO = values.deadline ? deadlineToISO(values.deadline) : '';
+        if (modalType === 'practical') {
+          if (editingRow) {
+            const { error } = await supabase
+              .from('batch_practicals')
+              .update({
+                title: values.title,
+                description: values.description || null,
+                deadline: deadlineISO,
+                practical_mode: values.practicalMode ?? 'code',
+              })
+              .eq('id', editingRow.id);
+            if (error) throw error;
+            setPracticals((prev) =>
+              prev.map((p) =>
+                p.id === editingRow.id
+                  ? toRow(values, p.id, p.submittedCount, p)
+                  : p
+              )
+            );
+          } else {
+            const { data, error } = await supabase
+              .from('batch_practicals')
+              .insert({
+                title: values.title,
+                description: values.description || null,
+                deadline: deadlineISO,
+                division: divNorm,
+                batch: batchNorm,
+                practical_mode: values.practicalMode ?? 'code',
+                created_by: user.id,
+              })
+              .select('id')
+              .single();
+            if (error) throw error;
+            const row = toRow(values, data.id, 0);
+            setPracticals((prev) => [...prev, row]);
+          }
+        } else {
+          const quiz_questions = (values.quizQuestions ?? []).map((q) => ({
+            question: q.question,
+            options: q.options ?? [],
+            correct_index: q.correctIndex ?? 0,
+          }));
+          if (editingRow) {
+            const { error } = await supabase
+              .from('batch_assignments')
+              .update({
+                title: values.title,
+                description: values.description || null,
+                deadline: deadlineISO,
+                quiz_questions,
+              })
+              .eq('id', editingRow.id);
+            if (error) throw error;
+            setAssignments((prev) =>
+              prev.map((a) =>
+                a.id === editingRow.id
+                  ? toRow(values, a.id, a.submittedCount, a)
+                  : a
+              )
+            );
+          } else {
+            const { data, error } = await supabase
+              .from('batch_assignments')
+              .insert({
+                title: values.title,
+                description: values.description || null,
+                deadline: deadlineISO,
+                division: divNorm,
+                batch: batchNorm,
+                quiz_questions,
+                created_by: user.id,
+              })
+              .select('id')
+              .single();
+            if (error) throw error;
+            const row = toRow(values, data.id, 0);
+            setAssignments((prev) => [...prev, row]);
+          }
+        }
+        setEditingRow(null);
+        setModalOpen(false);
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to save');
+      } finally {
+        setSaving(false);
       }
-      setEditingRow(null);
-      setModalOpen(false);
     },
-    [editingRow, activeTab]
+    [user?.id, divNorm, batchNorm, editingRow, modalType]
   );
 
-<<<<<<< HEAD
-  // Data for current view
-  const currentData = activeTab === 'practicals' ? practicals : assignments;
-=======
   const handleDeletePractical = useCallback((row: BatchTaskRow) => {
     setDeleteTarget({ row, type: 'practical' });
   }, []);
@@ -247,184 +412,122 @@ export default function BatchDashboard() {
 
   const modalInitialValues: BatchTaskFormValues | null = editingRow
     ? {
-        title: editingRow.title,
-        description: editingRow.description,
-        deadline: editingRow.deadline ? toLocalDateTimeInput(editingRow.deadline) : '',
-        type: modalType,
-        practicalMode: editingRow.practicalMode ?? 'code',
-        quizQuestions: editingRow.quizQuestions ?? [],
-      }
+      title: editingRow.title,
+      description: editingRow.description,
+      deadline: editingRow.deadline ? toLocalDateTimeInput(editingRow.deadline) : '',
+      type: modalType,
+      practicalMode: editingRow.practicalMode ?? 'code',
+      quizQuestions: editingRow.quizQuestions ?? [],
+    }
     : null;
 
   if (loading) {
     return (
       <div className="flex h-[50vh] w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
->>>>>>> c291dc7e96c6770cf6af9b90c71d91d6a370e112
 
   return (
-    <div className="flex flex-col gap-6 p-6 min-h-[calc(100vh-4rem)]">
-
-      {/* 1. Breadcrumbs */}
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/batches">Batches</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{batchLabel}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-
-      {/* 2. Header & Controls */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">{batchLabel}</h1>
-            <Badge variant="outline" className="text-muted-foreground">{divisionLabel}</Badge>
-          </div>
-          <p className="text-muted-foreground">
-            Manage course content and track student progress.
-          </p>
-        </div>
-
-        <Button onClick={openCreate} className="w-full md:w-auto shadow-sm">
-          <Plus className="mr-2 h-4 w-4" />
-          Add {activeTab === 'practicals' ? 'Practical' : 'Assignment'}
+    <div className="flex flex-col gap-8 p-6 pb-10 min-h-[calc(100vh-4rem)] bg-background">
+      {/* Header Section */}
+      <div className="flex flex-col gap-4">
+        <Button variant="ghost" size="sm" className="w-fit text-muted-foreground hover:text-foreground -ml-2" asChild>
+          <Link to="/batches">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Batches
+          </Link>
         </Button>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              {divisionLabel} · {batchLabel}
+            </h1>
+            <p className="text-muted-foreground">Manage practicals and assignments for this batch.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative w-64 hidden sm:block">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search..."
+                className="pl-9 bg-background"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Button onClick={handleAddClick} className="shadow-sm">
+              <Plus className="mr-2 h-4 w-4" />
+              Add {activeTab === 'practicals' ? 'Practical' : 'Assignment'}
+            </Button>
+          </div>
+        </div>
+        {/* Mobile Search */}
+        <div className="relative sm:hidden">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search experiments..."
+            className="pl-9 bg-background"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
       </div>
 
-      {/* 3. Tabs & Content */}
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => setActiveTab(v as any)}
-        className="w-full space-y-4"
-      >
-        <TabsList className="w-full justify-start h-auto p-1 bg-muted/50 rounded-lg">
-          <TabsTrigger
-            value="practicals"
-            className="flex-1 md:flex-none data-[state=active]:bg-background data-[state=active]:shadow-sm py-2"
-          >
-            <Beaker className="mr-2 h-4 w-4" />
-            Practicals
-          </TabsTrigger>
-          <TabsTrigger
-            value="assignments"
-            className="flex-1 md:flex-none data-[state=active]:bg-background data-[state=active]:shadow-sm py-2"
-          >
-            <FileText className="mr-2 h-4 w-4" />
-            Assignments
-          </TabsTrigger>
-        </TabsList>
+      {/* Main Content */}
+      <Card className="border-border/50 shadow-sm bg-card">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <CardHeader className="border-b px-6 py-4">
+            <div className="flex items-center justify-between">
+              <TabsList className="bg-muted">
+                <TabsTrigger value="practicals" className="gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  Practicals
+                </TabsTrigger>
+                <TabsTrigger value="assignments" className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  Assignments
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          </CardHeader>
 
-<<<<<<< HEAD
-        <div className="border rounded-lg bg-card text-card-foreground shadow-sm overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="w-[40%]">Title</TableHead>
-                <TableHead className="hidden md:table-cell">Deadline</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {currentData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
-                    No {activeTab} created yet. Click "Add" to get started.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                currentData.map((item) => (
-                  <TableRow key={item.id} className="group">
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-foreground">{item.title}</span>
-                        <span className="text-xs text-muted-foreground line-clamp-1">{item.description}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Calendar className="mr-2 h-3.5 w-3.5" />
-                        {item.deadline ? new Date(item.deadline).toLocaleDateString() : 'No deadline'}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="flex -space-x-2 overflow-hidden">
-                          {/* Mock Avatars */}
-                          {[...Array(3)].map((_, i) => (
-                            <div key={i} className="inline-block h-6 w-6 rounded-full ring-2 ring-background bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground">
-                              {String.fromCharCode(65 + i)}
-                            </div>
-                          ))}
-                        </div>
-                        <span className="text-xs text-muted-foreground font-medium ml-1">
-                          {item.submittedCount}/{item.totalStudents}
-                        </span>
-                      </div>
-                      {/* Progress Bar */}
-                      <div className="h-1.5 w-full bg-muted/50 rounded-full mt-2 overflow-hidden">
-                        <div
-                          className="h-full bg-primary transition-all duration-500"
-                          style={{ width: `${item.submittedPercent}%` }}
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Open menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => openEdit(item)}>Edit Details</DropdownMenuItem>
-                          <DropdownMenuItem>View Submissions</DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => openDelete(item)}>
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </Tabs>
+          <CardContent className="p-0">
+            <TabsContent value="practicals" className="m-0 border-none outline-none">
+              <div className="p-6">
+                <BatchPracticalsTable
+                  division={division}
+                  batch={batch}
+                  items={filteredPracticals}
+                  onAdd={openAddPractical}
+                  onEdit={openEditPractical}
+                  onCopy={handleCopyPractical}
+                  onDelete={handleDeletePractical}
+                  hideHeader
+                />
+              </div>
+            </TabsContent>
 
-      {/* Modals */}
-=======
-      <BatchPracticalsTable
-        division={division}
-        batch={batch}
-        items={practicals}
-        onAdd={openAddPractical}
-        onEdit={openEditPractical}
-        onCopy={handleCopyPractical}
-        onDelete={handleDeletePractical}
-      />
-
-      <BatchAssignmentsTable
-        division={division}
-        batch={batch}
-        items={assignments}
-        onAdd={openAddAssignment}
-        onEdit={openEditAssignment}
-        onCopy={handleCopyAssignment}
-        onDelete={handleDeleteAssignment}
-      />
+            <TabsContent value="assignments" className="m-0 border-none outline-none">
+              <div className="p-6">
+                <BatchAssignmentsTable
+                  division={division}
+                  batch={batch}
+                  items={filteredAssignments}
+                  onAdd={openAddAssignment}
+                  onEdit={openEditAssignment}
+                  onCopy={handleCopyAssignment}
+                  onDelete={handleDeleteAssignment}
+                  hideHeader
+                />
+              </div>
+            </TabsContent>
+          </CardContent>
+        </Tabs>
+      </Card>
 
       <CopyToBatchModal
         open={!!copyTarget}
@@ -436,33 +539,31 @@ export default function BatchDashboard() {
         copying={copying}
       />
 
->>>>>>> c291dc7e96c6770cf6af9b90c71d91d6a370e112
       <BatchTaskModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        initialValues={editingRow ? {
-          title: editingRow.title,
-          description: editingRow.description,
-          deadline: editingRow.deadline || '',
-          type: activeTab === 'practicals' ? 'practical' : 'assignment',
-          practicalMode: 'code'
-        } : null}
-        defaultType={activeTab === 'practicals' ? 'practical' : 'assignment'}
+        initialValues={modalInitialValues}
+        defaultType={modalType}
         onSave={handleSave}
+        saving={saving}
       />
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {activeTab === 'practicals' ? 'Practical' : 'Assignment'}?</AlertDialogTitle>
+            <AlertDialogTitle>Delete task?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the task and all associated student submissions.
+              This will remove &quot;{deleteTarget?.row.title}&quot;. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
-              Delete
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
