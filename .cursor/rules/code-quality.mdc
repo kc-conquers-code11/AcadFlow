@@ -1,0 +1,16 @@
+---
+description: Code quality — keep changes scoped, readable, reversible; no unrelated refactors or extra features
+alwaysApply: true
+---
+
+# Code Quality
+
+When making changes:
+
+- **Scoped** — Limit edits to what is required for the current task.
+- **Readable** — Write clear, understandable code; avoid unnecessary cleverness.
+- **Reversible** — Prefer changes that are easy to undo or revert if needed.
+
+**Avoid** refactors that are unrelated to this task.
+
+**Only** implement what was asked. Do not add extra features or assumptions.

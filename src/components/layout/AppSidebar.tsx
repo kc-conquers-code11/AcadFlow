@@ -33,15 +33,17 @@ interface NavItem {
   roles: ('student' | 'teacher' | 'hod')[];
 }
 
-// Your Navigation Data
-const navItems: NavItem[] = [
+// Base nav items. "Subjects" vs "Batches" is resolved per role below.
+const baseNavItems: NavItem[] = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, roles: ['student', 'teacher', 'hod'] },
-  { title: 'Subjects', url: '/subjects', icon: BookOpen, roles: ['student', 'teacher', 'hod'] },
   { title: 'Assignments', url: '/assignments', icon: FileText, roles: ['student', 'teacher', 'hod'] },
   { title: 'Submissions', url: '/submissions', icon: Upload, roles: ['teacher', 'hod'] },
   { title: 'Reports', url: '/reports', icon: BarChart3, roles: ['teacher', 'hod'] },
   { title: 'Users', url: '/users', icon: Users, roles: ['hod'] },
 ];
+
+const subjectsItem: NavItem = { title: 'Subjects', url: '/subjects', icon: BookOpen, roles: ['student', 'hod'] };
+const batchesItem: NavItem = { title: 'Batches', url: '/batches', icon: BookOpen, roles: ['teacher'] };
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
@@ -49,7 +51,14 @@ export function AppSidebar() {
 
   if (!user) return null;
 
-  const filteredItems = navItems.filter(item => item.roles.includes(user.role));
+  // Teachers see "Batches" (→ /batches); students and HoD see "Subjects" (→ /subjects).
+  const secondNavItem = user.role === 'teacher' ? batchesItem : subjectsItem;
+  const navItems: NavItem[] = [
+    baseNavItems[0], // Dashboard
+    secondNavItem,
+    ...baseNavItems.slice(1), // Assignments, Submissions, Reports, Users
+  ];
+  const filteredItems = navItems.filter((item) => item.roles.includes(user.role));
 
   return (
     <Sidebar collapsible="icon" className="border-r border-slate-200 bg-slate-50/50">

@@ -12,6 +12,8 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Subjects from "./pages/Subjects";
 import SubjectDetail from "./pages/SubjectDetail";
+import Batches from "./pages/Batches";
+import BatchDashboard from "./pages/BatchDashboard";
 import Assignments from "./pages/Assignments";
 import EditorPage from "./pages/EditorPage";
 import Submissions from "./pages/Submissions";
@@ -46,6 +48,12 @@ const App = () => (
                 <Route path="/subjects" element={<Subjects />} />
                 <Route path="/subjects/:subjectId" element={<SubjectDetail />} />
                 <Route path="/assignments" element={<Assignments />} />
+
+                {/* Teacher Only: Batches (no HoD) */}
+                <Route element={<ProtectedRoute allowedRoles={['teacher']} />}>
+                  <Route path="/batches" element={<Batches />} />
+                  <Route path="/batches/:division/:batch" element={<BatchDashboard />} />
+                </Route>
                 
                 {/* Student Only */}
                 <Route element={<ProtectedRoute allowedRoles={['student']} />}>
