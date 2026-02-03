@@ -1,3 +1,4 @@
+import { sendPassword } from "@/emails/sendUserNamePassword";
 import { supabase } from "@/lib/supabase";
 import { IStaff } from "@/types/admin";
 
@@ -28,11 +29,12 @@ const addStaff = async ({ email, name, subjectId }) => {
         if (checkError && checkError.code !== "PGRST116") {
             throw checkError
         }
+        const password = crypto.randomUUID()
 
         const { data: signUpData, error: signUpError } =
             await supabase.auth.signUp({
                 email,
-                password: crypto.randomUUID(),
+                password
             })
 
         if (signUpError) throw signUpError
@@ -65,6 +67,12 @@ const addStaff = async ({ email, name, subjectId }) => {
         if (teacherError) throw teacherError
 
         // email notification for email and password
+        await sendPassword({
+            to: email,
+            subject: "Welcome to ACADFLOW",
+            role: "teacher",
+            password
+        })
 
 
         return {
@@ -246,7 +254,13 @@ const getStaffs = async () => {
 
 // Student
 
-const addStudent = async () => { }
+const addStudent = async () => {
+    try {
+
+    } catch (error) {
+
+    }
+}
 
 const addStudents = async () => { }
 
