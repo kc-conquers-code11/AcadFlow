@@ -24,7 +24,7 @@ const GridPattern = () => (
 );
 
 const FloatingBadge = ({ icon: Icon, label, delay }: any) => (
-  <motion.div 
+  <motion.div
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay, duration: 0.5 }}
@@ -109,6 +109,8 @@ export default function Login() {
       <GridPattern />
       
       {/* Abstract Gradient Orbs */}
+
+      {/* Abstract Gradient Orbs for subtle color - purely atmospheric */}
       <div className="absolute top-[-10%] left-[-5%] w-[30%] h-[30%] bg-blue-100/50 rounded-full blur-[100px]" />
       <div className="absolute bottom-[-10%] right-[-5%] w-[30%] h-[30%] bg-indigo-100/50 rounded-full blur-[100px]" />
 
@@ -130,25 +132,27 @@ export default function Login() {
       <main className="flex-1 flex flex-col md:flex-row items-center justify-center max-w-6xl mx-auto w-full px-6 gap-12 lg:gap-24">
         
         {/* Left: The "Pitch" */}
+
+        {/* Left: The "Pitch" - Clean and Editorial */}
         <div className="flex-1 space-y-8 text-center md:text-left pt-10 md:pt-0">
           <div className="space-y-4">
-            <motion.h1 
+            <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.1]"
             >
-              Academic rigour <br /> 
+              Academic rigour <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
                 meets modern flow.
               </span>
             </motion.h1>
-            <motion.p 
+            <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
               className="text-lg text-slate-500 max-w-lg mx-auto md:mx-0 leading-relaxed"
             >
-              The centralized platform for assignments, practicals, and record keeping. 
+              The centralized platform for assignments, practicals, and record keeping.
               Designed for focus, built for integrity.
             </motion.p>
           </div>
@@ -160,8 +164,8 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Right: The "Ceramic" Form Card */}
-        <motion.div 
+        {/* Right: The "Ceramic" Card */}
+        <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.4 }}
@@ -169,7 +173,7 @@ export default function Login() {
         >
           {/* Subtle Shadow Layer */}
           <div className="absolute -inset-0.5 bg-gradient-to-b from-slate-200 to-slate-100 rounded-2xl blur opacity-50 group-hover:opacity-75 transition duration-500" />
-          
+
           <div className="relative bg-white rounded-xl shadow-2xl shadow-slate-200/50 p-8 border border-slate-100">
             <div className="mb-8">
               <h2 className="text-xl font-bold text-slate-900">
@@ -180,151 +184,34 @@ export default function Login() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              
-              {/* Name Field (Only for Signup) */}
-              <AnimatePresence>
-                {!isLogin && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <CleanInput 
-                      label="Full Name"
-                      type="text" 
-                      value={name}
-                      onChange={(e: any) => setName(e.target.value)}
-                      required={!isLogin}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-5">
+                <CleanInput
+                  label="Institutional Email"
+                  type="email"
+                  value={email}
+                  onChange={(e: any) => setEmail(e.target.value)}
+                  required
+                />
+                <CleanInput
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={(e: any) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
 
-              <CleanInput 
-                label="Institutional Email"
-                type="email" 
-                value={email}
-                onChange={(e: any) => setEmail(e.target.value)}
-                required
-              />
-              <CleanInput 
-                label="Password"
-                type="password" 
-                value={password}
-                onChange={(e: any) => setPassword(e.target.value)}
-                required
-              />
+              <div className="flex items-center justify-between text-xs">
+                <label className="flex items-center gap-2 cursor-pointer text-slate-600">
+                  <input type="checkbox" className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                  Remember device
+                </label>
+                <a href="#" className="font-semibold text-blue-600 hover:text-blue-700">Forgot Password?</a>
+              </div>
 
-              {/* Role Toggle + Div/Batch (Only for Signup) */}
-              <AnimatePresence>
-                {!isLogin && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0, marginTop: 0 }}
-                    animate={{ height: 'auto', opacity: 1, marginTop: 20 }}
-                    exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                    className="overflow-hidden space-y-4"
-                  >
-                    {/* Role Selection */}
-                    <div>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Role</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setRole('student')}
-                          className={cn(
-                            "py-2 text-sm font-medium rounded-lg border transition-all",
-                            role === 'student' 
-                              ? "bg-blue-50 border-blue-200 text-blue-700" 
-                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                          )}
-                        >
-                          Student
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setRole('teacher')}
-                          className={cn(
-                            "py-2 text-sm font-medium rounded-lg border transition-all",
-                            role === 'teacher' 
-                              ? "bg-blue-50 border-blue-200 text-blue-700" 
-                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                          )}
-                        >
-                          Teacher
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Student Specific: Div & Batch */}
-                    {role === 'student' && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="grid grid-cols-2 gap-4"
-                      >
-                        {/* Division */}
-                        <div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Division</p>
-                          <div className="flex gap-2">
-                            {['A', 'B'].map((d) => (
-                              <button
-                                key={d}
-                                type="button"
-                                onClick={() => setDivision(d as any)}
-                                className={cn(
-                                  "flex-1 py-2 text-sm font-bold rounded-lg border transition-all",
-                                  division === d 
-                                    ? "bg-indigo-50 border-indigo-200 text-indigo-700" 
-                                    : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                                )}
-                              >
-                                {d}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Batch */}
-                        <div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Lab Batch</p>
-                          <div className="flex gap-2">
-                            {['A', 'B', 'C'].map((b) => (
-                              <button
-                                key={b}
-                                type="button"
-                                onClick={() => setBatch(b as any)}
-                                className={cn(
-                                  "flex-1 py-2 text-sm font-bold rounded-lg border transition-all",
-                                  batch === b 
-                                    ? "bg-indigo-50 border-indigo-200 text-indigo-700" 
-                                    : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                                )}
-                              >
-                                {b}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {isLogin && (
-                <div className="flex items-center justify-between text-xs">
-                  <label className="flex items-center gap-2 cursor-pointer text-slate-600">
-                    <input type="checkbox" className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                    Remember device
-                  </label>
-                  <a href="#" className="font-semibold text-blue-600 hover:text-blue-700">Forgot credentials?</a>
-                </div>
-              )}
-
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={isLoading}
                 className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg transition-all hover:shadow-lg hover:shadow-slate-900/20 flex items-center justify-center gap-2 group/btn"
               >
@@ -341,23 +228,24 @@ export default function Login() {
               </Button>
             </form>
 
-            <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-              <p className="text-sm text-slate-500">
-                {isLogin ? "First time here? " : "Already registered? "}
-                <button 
-                  type="button"
-                  onClick={() => setIsLogin(!isLogin)}
-                  className="font-semibold text-blue-600 hover:text-blue-700 transition-colors"
-                >
-                  {isLogin ? "Create an account" : "Sign in"}
-                </button>
-              </p>
+            <div className="mt-8 pt-6 border-t border-slate-100">
+              <p className="text-xs text-center text-slate-400 font-medium uppercase tracking-wider mb-3">Quick Access (Demo)</p>
+              <div className="grid grid-cols-3 gap-2">
+                {['Student', 'Teacher', 'Admin'].map((role) => (
+                  <button
+                    key={role}
+                    className="px-2 py-2 text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded hover:bg-white hover:border-blue-200 hover:text-blue-600 transition-all"
+                  >
+                    {role}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-          
+
           {/* Decorative Security Seal */}
           <div className="absolute -right-4 -bottom-4 hidden md:flex h-12 w-12 bg-white rounded-full shadow-lg items-center justify-center border border-slate-100" title="Secured by Supabase">
-             <ShieldCheck size={20} className="text-emerald-500" />
+            <ShieldCheck size={20} className="text-emerald-500" />
           </div>
 
         </motion.div>
