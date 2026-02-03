@@ -91,7 +91,7 @@ export function AppHeader() {
               <Avatar className="h-9 w-9">
                 <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`} alt={user.name} />
                 <AvatarFallback className="bg-muted text-muted-foreground font-bold">
-                  {user.name.substring(0, 2).toUpperCase()}
+                  {user?.name?.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
             </Button>
