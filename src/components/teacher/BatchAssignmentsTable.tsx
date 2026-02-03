@@ -8,14 +8,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Pencil, ExternalLink, Trash2, Copy } from 'lucide-react';
+import { Pencil, ExternalLink, Trash2, Copy, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import type { BatchTaskRow } from './BatchPracticalsTable';
+import { cn } from "@/lib/utils";
+import type { BatchTaskRow, SortConfig } from './BatchPracticalsTable';
 
 interface BatchAssignmentsTableProps {
   division: string;
@@ -26,6 +27,8 @@ interface BatchAssignmentsTableProps {
   onCopy?: (item: BatchTaskRow) => void;
   onDelete: (item: BatchTaskRow) => void;
   hideHeader?: boolean;
+  sortConfig?: SortConfig;
+  onSort?: (key: 'submittedCount' | 'submittedPercent') => void;
 }
 
 export function BatchAssignmentsTable({
@@ -37,7 +40,24 @@ export function BatchAssignmentsTable({
   onCopy,
   onDelete,
   hideHeader = false,
+  sortConfig,
+  onSort,
 }: BatchAssignmentsTableProps) {
+
+  const getSortIcon = (key: 'submittedCount' | 'submittedPercent') => {
+    if (sortConfig?.key !== key) return <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />;
+    return sortConfig.direction === 'asc'
+      ? <ArrowUp className="ml-2 h-4 w-4 text-primary" />
+      : <ArrowDown className="ml-2 h-4 w-4 text-primary" />;
+  };
+
+  const getSortButtonClass = (key: 'submittedCount' | 'submittedPercent') => {
+    return cn(
+      "-ml-3 h-8 hover:bg-accent hover:text-accent-foreground",
+      sortConfig?.key === key && "text-primary font-bold"
+    );
+  };
+
   return (
     <section className="space-y-4">
       {!hideHeader && (
@@ -55,8 +75,28 @@ export function BatchAssignmentsTable({
               <TableHead className="w-16">Sr. No</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Description</TableHead>
-              <TableHead className="w-24 text-center">Count</TableHead>
-              <TableHead className="w-24 text-center">Submitted %</TableHead>
+              <TableHead className="w-36 text-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={getSortButtonClass('submittedCount')}
+                  onClick={() => onSort?.('submittedCount')}
+                >
+                  Count
+                  {getSortIcon('submittedCount')}
+                </Button>
+              </TableHead>
+              <TableHead className="w-36 text-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={getSortButtonClass('submittedPercent')}
+                  onClick={() => onSort?.('submittedPercent')}
+                >
+                  Submitted %
+                  {getSortIcon('submittedPercent')}
+                </Button>
+              </TableHead>
               <TableHead className="w-48 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>

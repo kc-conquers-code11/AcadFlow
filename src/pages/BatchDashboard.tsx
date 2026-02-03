@@ -128,6 +128,11 @@ export default function BatchDashboard() {
   const [activeTab, setActiveTab] = useState('practicals');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const [sortConfig, setSortConfig] = useState<{
+    key: 'submittedCount' | 'submittedPercent';
+    direction: 'asc' | 'desc';
+  } | null>(null);
+
   const divNorm = normalizeDivision(division ?? '');
   const batchNorm = normalizeBatch(batch ?? '');
 
@@ -170,23 +175,61 @@ export default function BatchDashboard() {
     fetchData();
   }, [fetchData]);
 
+  const handleSort = (key: 'submittedCount' | 'submittedPercent') => {
+    setSortConfig((current) => {
+      if (current?.key === key) {
+        if (current.direction === 'asc') return { key, direction: 'desc' };
+        return null; // Reset to default sort
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
   const filteredPracticals = useMemo(() => {
-    if (!searchQuery) return practicals;
-    const lower = searchQuery.toLowerCase();
-    return practicals.filter(p =>
-      p.title.toLowerCase().includes(lower) ||
-      p.description.toLowerCase().includes(lower)
-    );
-  }, [practicals, searchQuery]);
+    let result = practicals;
+    if (searchQuery) {
+      const lower = searchQuery.toLowerCase();
+      result = result.filter(p =>
+        (p.title || '').toLowerCase().includes(lower) ||
+        (p.description || '').toLowerCase().includes(lower)
+      );
+    }
+    if (sortConfig) {
+      result = [...result].sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return result;
+  }, [practicals, searchQuery, sortConfig]);
 
   const filteredAssignments = useMemo(() => {
-    if (!searchQuery) return assignments;
-    const lower = searchQuery.toLowerCase();
-    return assignments.filter(a =>
-      a.title.toLowerCase().includes(lower) ||
-      a.description.toLowerCase().includes(lower)
-    );
-  }, [assignments, searchQuery]);
+    let result = assignments;
+    if (searchQuery) {
+      const lower = searchQuery.toLowerCase();
+      result = result.filter(a =>
+        (a.title || '').toLowerCase().includes(lower) ||
+        (a.description || '').toLowerCase().includes(lower)
+      );
+    }
+    if (sortConfig) {
+      result = [...result].sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return result;
+  }, [assignments, searchQuery, sortConfig]);
 
   if (!user) return null;
   if (!division || !batch) {
@@ -449,7 +492,7 @@ export default function BatchDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <div className="relative w-64 hidden sm:block">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
                 type="search"
                 placeholder="Search..."
@@ -466,7 +509,7 @@ export default function BatchDashboard() {
         </div>
         {/* Mobile Search */}
         <div className="relative sm:hidden">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
             type="search"
             placeholder="Search experiments..."
@@ -507,6 +550,8 @@ export default function BatchDashboard() {
                   onCopy={handleCopyPractical}
                   onDelete={handleDeletePractical}
                   hideHeader
+                  sortConfig={sortConfig}
+                  onSort={handleSort}
                 />
               </div>
             </TabsContent>
@@ -522,6 +567,8 @@ export default function BatchDashboard() {
                   onCopy={handleCopyAssignment}
                   onDelete={handleDeleteAssignment}
                   hideHeader
+                  sortConfig={sortConfig}
+                  onSort={handleSort}
                 />
               </div>
             </TabsContent>
