@@ -24,6 +24,9 @@ import UsersPage from "./pages/Users";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
+// NOTE: import structure changed
+import { ForgotPassword, ResetPassword } from "./pages/index"
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -36,14 +39,18 @@ const App = () => (
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
-            
+
+            {/* Password Reset Routes */}
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+
             {/* Protected Routes Structure */}
             {/* 1. Check Auth */}
             <Route element={<ProtectedRoute />}>
-              
+
               {/* 2. Apply Layout (Persistent Sidebar) */}
               <Route element={<MainLayout />}>
-                
+
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/subjects" element={<Subjects />} />
                 <Route path="/subjects/:subjectId" element={<SubjectDetail />} />
@@ -57,7 +64,7 @@ const App = () => (
                 
                 {/* Student Only */}
                 <Route element={<ProtectedRoute allowedRoles={['student']} />}>
-                   <Route path="/editor/:assignmentId" element={<EditorPage />} />
+                  <Route path="/editor/:assignmentId" element={<EditorPage />} />
                 </Route>
 
                 {/* Teachers Only */}
@@ -75,12 +82,16 @@ const App = () => (
 
                 <Route path="/settings" element={<Settings />} />
 
+
+
+
+
               </Route> {/* End Layout */}
             </Route> {/* End Auth Protection */}
-            
+
             {/* Redirects */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            
+
             {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
