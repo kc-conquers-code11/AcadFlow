@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
-import { mockAssignments, mockSubjects, mockSubmissions } from '@/data/mockData';
 import { 
   FileText, 
   Code2, 
@@ -13,7 +13,8 @@ import {
   CheckCircle2, 
   AlertCircle,
   FlaskConical,
-  BookOpen
+  BookOpen,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -59,16 +60,11 @@ const StatusPill = ({ status, marks, isOverdue }: { status?: string; marks?: num
   );
 };
 
-const AssignmentCard = ({ assignment, user }: { assignment: any, user: any }) => {
-  const submission = user.role === 'student'
-    ? mockSubmissions.find(s => s.assignmentId === assignment.id && s.studentId === user.id)
-    : undefined;
-
+const AssignmentCard = ({ assignment, user, submission }: { assignment: any, user: any, submission?: any }) => {
   const deadline = new Date(assignment.deadline);
-  const isOverdue = deadline < new Date() && !submission?.submittedAt;
+  const isOverdue = deadline < new Date() && !submission?.submitted_at;
   const daysLeft = Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   
-  // Icon Logic based on type
   const isPractical = assignment.type === 'practical';
   const Icon = isPractical ? FlaskConical : BookOpen;
   const iconColor = isPractical ? "text-violet-600 bg-violet-50 border-violet-100" : "text-blue-600 bg-blue-50 border-blue-100";
@@ -80,12 +76,10 @@ const AssignmentCard = ({ assignment, user }: { assignment: any, user: any }) =>
       whileHover={{ y: -2, transition: { duration: 0.2 } }}
       className="group bg-white rounded-xl border border-slate-200 p-4 transition-all hover:shadow-lg hover:shadow-slate-200/50 flex flex-col sm:flex-row gap-4 items-start sm:items-center"
     >
-      {/* Icon Box */}
       <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center border shrink-0", iconColor)}>
         <Icon size={20} />
       </div>
 
-      {/* Content */}
       <div className="flex-1 min-w-0 space-y-1">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
@@ -102,19 +96,18 @@ const AssignmentCard = ({ assignment, user }: { assignment: any, user: any }) =>
             {deadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </span>
           
-          {!isOverdue && !submission?.submittedAt && (
+          {!isOverdue && !submission?.submitted_at && (
              <span className={cn(
                "flex items-center gap-1.5",
                daysLeft <= 2 ? "text-amber-600" : "text-slate-500"
              )}>
                <Clock size={13} />
-               {daysLeft === 0 ? "Due Today" : `${daysLeft} days left`}
+               {daysLeft <= 0 ? "Due Today" : `${daysLeft} days left`}
              </span>
           )}
         </div>
       </div>
 
-      {/* Action Area */}
       <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end mt-2 sm:mt-0 pl-14 sm:pl-0">
         {user.role === 'student' && (
           <StatusPill status={submission?.status} marks={submission?.marks} isOverdue={isOverdue} />
@@ -132,14 +125,94 @@ const AssignmentCard = ({ assignment, user }: { assignment: any, user: any }) =>
 
 export default function Assignments() {
   const { user } = useAuth();
+  const [assignmentsBySubject, setAssignmentsBySubject] = useState<any[]>([]);
+  const [submissionsMap, setSubmissionsMap] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
 
   if (!user) return null;
 
-  // Group assignments by subject
-  const assignmentsBySubject = mockSubjects.map(subject => ({
-    subject,
-    assignments: mockAssignments.filter(a => a.subjectId === subject.id),
-  })).filter(group => group.assignments.length > 0);
+  useEffect(() => {
+    fetchAssignments();
+  }, [user]);
+
+  const fetchAssignments = async () => {
+    try {
+      setLoading(true);
+      
+      // 1. Fetch Subjects and Assignments
+      let query = supabase.from('subjects').select(`
+        *,
+        assignments (*)
+      `);
+
+      // 2. Fetch User's Submissions (if student)
+      let mySubmissions: any[] = [];
+      if (user.role === 'student') {
+        const { data: subs } = await supabase
+          .from('submissions')
+          .select('*')
+          .eq('student_id', user.id);
+        mySubmissions = subs || [];
+        
+        // Create Map for fast lookup: { assignment_id: submission }
+        const subMap: Record<string, any> = {};
+        mySubmissions.forEach(s => subMap[s.assignment_id] = s);
+        setSubmissionsMap(subMap);
+      }
+
+      const { data: subjectData, error } = await query;
+      if (error) throw error;
+
+      // 3. Filter & Group Logic
+      const grouped = (subjectData || []).map((subject: any) => {
+        // Filter assignments based on Target Audience
+        const filteredAssignments = (subject.assignments || []).filter((assignment: any) => {
+          // If Teacher -> Show all
+          if (user.role !== 'student') return true;
+
+          // If Student -> Check targeting logic
+          const targetDiv = assignment.target_division;
+          const targetBatch = assignment.target_batch;
+
+          // Logic:
+          // 1. If target_division is null -> Open to everyone
+          // 2. If target_division matches user.division:
+          //    a. If target_batch is null -> Open to whole division
+          //    b. If target_batch matches user.batch -> Open to batch
+          
+          const isCommon = !targetDiv;
+          const isMyDivision = targetDiv === user.division;
+          const isMyBatch = targetBatch === user.batch;
+          const isWholeDivision = targetDiv === user.division && !targetBatch;
+
+          return isCommon || isWholeDivision || (isMyDivision && isMyBatch);
+        });
+
+        // Sort by deadline
+        filteredAssignments.sort((a: any, b: any) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
+
+        return {
+          subject,
+          assignments: filteredAssignments
+        };
+      }).filter((group: any) => group.assignments.length > 0); // Remove subjects with no relevant assignments
+
+      setAssignmentsBySubject(grouped);
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen pb-20">
@@ -175,11 +248,12 @@ export default function Assignments() {
               
               {/* Cards Grid */}
               <div className="grid gap-3">
-                {assignments.map(assignment => (
+                {assignments.map((assignment: any) => (
                   <AssignmentCard 
                     key={assignment.id} 
                     assignment={assignment} 
                     user={user} 
+                    submission={submissionsMap[assignment.id]}
                   />
                 ))}
               </div>

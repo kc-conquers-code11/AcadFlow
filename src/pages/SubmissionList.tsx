@@ -1,174 +1,237 @@
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { motion } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { 
-  getAssignmentById,
-  getSubjectById,
-  mockSubmissions,
-  mockStudents
-} from '@/data/mockData';
-import { ArrowLeft, Eye, AlertTriangle } from 'lucide-react';
+  ArrowLeft, 
+  Search, 
+  Filter, 
+  FileText, 
+  CheckCircle2, 
+  Clock, 
+  MoreVertical,
+  ChevronRight,
+  Loader2
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+
+// Helper for Status Badge
+const StatusBadge = ({ status, marks }: { status: string; marks?: number }) => {
+  if (status === 'evaluated') {
+    return (
+      <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-100">
+        <CheckCircle2 size={12} className="mr-1" /> Graded: {marks}
+      </Badge>
+    );
+  }
+  if (status === 'submitted') {
+    return (
+      <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-100">
+        <Clock size={12} className="mr-1" /> Needs Review
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-slate-500 border-slate-200 bg-slate-50">
+      Not Submitted
+    </Badge>
+  );
+};
 
 export default function SubmissionList() {
   const { assignmentId } = useParams<{ assignmentId: string }>();
-  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  
+  const [assignment, setAssignment] = useState<any>(null);
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]); // To list non-submitters too if needed
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'evaluated'>('all');
 
-  if (!user || !assignmentId) return null;
+  useEffect(() => {
+    if (assignmentId) fetchData();
+  }, [assignmentId]);
 
-  const assignment = getAssignmentById(assignmentId);
-  const subject = assignment ? getSubjectById(assignment.subjectId) : undefined;
-  const submissions = mockSubmissions.filter(s => s.assignmentId === assignmentId);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
 
-  if (!assignment) {
+      // 1. Fetch Assignment Details
+      const { data: assignData, error: assignError } = await supabase
+        .from('assignments')
+        .select('*, subjects(name, code)')
+        .eq('id', assignmentId)
+        .single();
+      
+      if (assignError) throw assignError;
+      setAssignment(assignData);
+
+      // 2. Fetch Submissions with Student Profiles
+      const { data: subData, error: subError } = await supabase
+        .from('submissions')
+        .select(`
+          *,
+          profiles:student_id (name, enrollment_number, avatar_url)
+        `)
+        .eq('assignment_id', assignmentId);
+
+      if (subError) throw subError;
+      setSubmissions(subData || []);
+
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter Logic
+  const filteredSubmissions = submissions.filter(sub => {
+    const nameMatch = sub.profiles?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    const rollMatch = sub.profiles?.enrollment_number?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesSearch = nameMatch || rollMatch;
+    
+    if (filter === 'all') return matchesSearch;
+    if (filter === 'pending') return matchesSearch && sub.status === 'submitted';
+    if (filter === 'evaluated') return matchesSearch && sub.status === 'evaluated';
+    
+    return matchesSearch;
+  });
+
+  if (loading) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Assignment not found</p>
-        <Button variant="link" asChild>
-          <Link to="/submissions">Back to Submissions</Link>
-        </Button>
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="mb-6">
-        <Button variant="ghost" size="sm" className="mb-4" asChild>
-          <Link to="/submissions">
+    <div className="max-w-5xl mx-auto pb-10">
+      
+      {/* Header */}
+      <div className="mb-8">
+        <Button variant="ghost" size="sm" className="mb-4 text-slate-500 -ml-2" asChild>
+          <Link to="/dashboard/assignments">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Submissions
+            Back to Assignments
           </Link>
         </Button>
         
-        <h1 className="text-2xl font-semibold">{assignment.title}</h1>
-        <p className="text-muted-foreground">{subject?.name} • {subject?.code}</p>
-      </div>
-
-      {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Students</p>
-            <p className="text-2xl font-semibold">{mockStudents.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Submitted</p>
-            <p className="text-2xl font-semibold">
-              {submissions.filter(s => s.status !== 'draft').length}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">{assignment.title}</h1>
+            <p className="text-slate-500 mt-1">
+              {assignment.subjects?.name} • {assignment.subjects?.code}
             </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Pending Review</p>
-            <p className="text-2xl font-semibold text-primary">
-              {submissions.filter(s => s.status === 'submitted').length}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Evaluated</p>
-            <p className="text-2xl font-semibold text-success">
-              {submissions.filter(s => s.status === 'evaluated').length}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Submissions Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Student Submissions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Student</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Enrollment</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Plagiarism</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Marks</th>
-                  <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockStudents.map(student => {
-                  const submission = submissions.find(s => s.studentId === student.id);
-                  
-                  return (
-                    <tr key={student.id} className="border-b border-border last:border-0">
-                      <td className="py-3 px-4">
-                        <p className="font-medium text-sm">{student.name}</p>
-                        <p className="text-xs text-muted-foreground">{student.email}</p>
-                      </td>
-                      <td className="py-3 px-4 text-sm">{student.enrollmentNumber}</td>
-                      <td className="py-3 px-4">
-                        {submission ? (
-                          <StatusBadge status={submission.status} />
-                        ) : (
-                          <Badge variant="outline" className="text-muted-foreground">Not started</Badge>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        {submission?.plagiarismScore !== undefined ? (
-                          <div className="flex items-center gap-2">
-                            {submission.plagiarismScore > 30 && (
-                              <AlertTriangle className="h-4 w-4 text-destructive" />
-                            )}
-                            <span className={submission.plagiarismScore > 30 ? 'text-destructive font-medium' : ''}>
-                              {submission.plagiarismScore}%
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        {submission?.marks !== undefined ? (
-                          <span className="font-medium">{submission.marks}/{assignment.maxMarks}</span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        {submission && submission.status !== 'draft' && (
-                          <Button size="sm" variant="ghost" asChild>
-                            <Link to={`/evaluate/${submission.id}`}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              Review
-                            </Link>
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex gap-2 text-sm">
+             <div className="px-3 py-1 bg-white border border-slate-200 rounded-md shadow-sm">
+                <span className="text-slate-500">Total:</span> <span className="font-bold">{submissions.length}</span>
+             </div>
+             <div className="px-3 py-1 bg-blue-50 border border-blue-100 rounded-md shadow-sm text-blue-700">
+                <span className="opacity-70">Pending:</span> <span className="font-bold">{submissions.filter(s => s.status === 'submitted').length}</span>
+             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <Input 
+            placeholder="Search student..." 
+            className="pl-9 border-slate-200 focus:ring-blue-500/10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+          {['all', 'pending', 'evaluated'].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f as any)}
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize",
+                filter === f 
+                  ? "bg-white text-slate-900 shadow-sm" 
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* List */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+            <tr>
+              <th className="px-6 py-4 w-[40%]">Student</th>
+              <th className="px-6 py-4">Submitted At</th>
+              <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filteredSubmissions.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
+                  No submissions found matching filters.
+                </td>
+              </tr>
+            ) : (
+              filteredSubmissions.map((sub) => (
+                <motion.tr 
+                  key={sub.id} 
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }}
+                  className="hover:bg-slate-50/80 transition-colors"
+                >
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs border border-slate-200">
+                        {sub.profiles?.name?.charAt(0) || 'U'}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-slate-900">{sub.profiles?.name}</div>
+                        <div className="text-xs text-slate-500 font-mono">{sub.profiles?.enrollment_number || 'No ID'}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-slate-500">
+                    {sub.submitted_at 
+                      ? new Date(sub.submitted_at).toLocaleDateString() + ' ' + new Date(sub.submitted_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+                      : <span className="italic text-slate-400">Draft saved</span>
+                    }
+                  </td>
+                  <td className="px-6 py-4">
+                    <StatusBadge status={sub.status} marks={sub.marks} />
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <Button size="sm" variant="outline" className="h-8 border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200" asChild>
+                      <Link to={`/evaluate/${sub.id}`}>
+                        Evaluate <ChevronRight size={14} className="ml-1" />
+                      </Link>
+                    </Button>
+                  </td>
+                </motion.tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const styles = {
-    draft: 'bg-muted text-muted-foreground',
-    submitted: 'bg-primary/10 text-primary',
-    evaluated: 'bg-success/10 text-success',
-  };
-
-  return (
-    <Badge className={styles[status as keyof typeof styles] || styles.draft}>
-      {status}
-    </Badge>
   );
 }

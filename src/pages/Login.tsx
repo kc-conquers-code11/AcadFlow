@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, ArrowRight, BookOpen, ShieldCheck, Microscope, ChevronRight } from 'lucide-react';
+import { 
+  GraduationCap, 
+  ArrowRight, 
+  BookOpen, 
+  ShieldCheck, 
+  Microscope, 
+  User, 
+  Mail, 
+  Lock, 
+  Loader2 
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 // --- Visual Components ---
 
@@ -29,7 +40,7 @@ const CleanInput = ({ label, ...props }: any) => {
   return (
     <div className="group relative">
       <label className={cn(
-        "absolute left-3 transition-all duration-200 pointer-events-none text-slate-500 bg-white px-1",
+        "absolute left-3 transition-all duration-200 pointer-events-none text-slate-500 bg-white px-1 z-10",
         focused || props.value ? "-top-2.5 text-xs text-blue-600 font-semibold" : "top-3 text-sm"
       )}>
         {label}
@@ -38,35 +49,66 @@ const CleanInput = ({ label, ...props }: any) => {
         {...props}
         onFocus={() => setFocused(true)}
         onBlur={(e) => setFocused(e.target.value !== '')}
-        className="w-full h-12 px-4 bg-white border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm group-hover:border-slate-300"
+        className="w-full h-12 px-4 bg-white border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm group-hover:border-slate-300 placeholder:text-transparent"
       />
     </div>
   );
 };
 
 export default function Login() {
+  // Logic State
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [role, setRole] = useState<'student' | 'teacher'>('student');
+  
+  // New States for Division & Batch
+  const [division, setDivision] = useState<'A' | 'B'>('A');
+  const [batch, setBatch] = useState<'A' | 'B' | 'C'>('A');
+
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  
+  const { login, signup } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(async () => {
-      try {
-        await login(email, password);
+
+    try {
+      if (isLogin) {
+        // Real Login
+        const { error } = await login(email, password);
+        if (error) throw error;
+        toast.success("Welcome back!");
         navigate('/dashboard');
-      } catch (error) {
-        setIsLoading(false);
+      } else {
+        // Real Signup
+        if (!name.trim()) throw new Error("Name is required");
+        
+        // Pass div/batch only if student
+        const divToSend = role === 'student' ? division : undefined;
+        const batchToSend = role === 'student' ? batch : undefined;
+
+        const { error } = await signup(email, password, name, role, divToSend, batchToSend);
+        if (error) throw error;
+        toast.success("Account created! Welcome to AcadFlow.");
+        navigate('/dashboard');
       }
-    }, 1000);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Authentication failed");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-slate-50/50 flex flex-col relative overflow-hidden font-sans selection:bg-blue-100 selection:text-blue-900">
       <GridPattern />
+      
+      {/* Abstract Gradient Orbs */}
 
       {/* Abstract Gradient Orbs for subtle color - purely atmospheric */}
       <div className="absolute top-[-10%] left-[-5%] w-[30%] h-[30%] bg-blue-100/50 rounded-full blur-[100px]" />
@@ -88,6 +130,8 @@ export default function Login() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col md:flex-row items-center justify-center max-w-6xl mx-auto w-full px-6 gap-12 lg:gap-24">
+        
+        {/* Left: The "Pitch" */}
 
         {/* Left: The "Pitch" - Clean and Editorial */}
         <div className="flex-1 space-y-8 text-center md:text-left pt-10 md:pt-0">
@@ -132,8 +176,12 @@ export default function Login() {
 
           <div className="relative bg-white rounded-xl shadow-2xl shadow-slate-200/50 p-8 border border-slate-100">
             <div className="mb-8">
-              <h2 className="text-xl font-bold text-slate-900">Sign in</h2>
-              <p className="text-slate-500 text-sm mt-1">Computer Engineering Department</p>
+              <h2 className="text-xl font-bold text-slate-900">
+                {isLogin ? "Sign in" : "Create Account"}
+              </h2>
+              <p className="text-slate-500 text-sm mt-1">
+                {isLogin ? "Computer Engineering Department" : "Join the academic portal"}
+              </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -167,9 +215,14 @@ export default function Login() {
                 disabled={isLoading}
                 className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg transition-all hover:shadow-lg hover:shadow-slate-900/20 flex items-center justify-center gap-2 group/btn"
               >
-                {isLoading ? "Authenticating..." : (
+                {isLoading ? (
                   <>
-                    Access Portal <ArrowRight size={16} className="group-hover/btn:translate-x-0.5 transition-transform" />
+                    <Loader2 size={16} className="animate-spin" /> Processing...
+                  </>
+                ) : (
+                  <>
+                    {isLogin ? "Access Portal" : "Create Account"} 
+                    <ArrowRight size={16} className="group-hover/btn:translate-x-0.5 transition-transform" />
                   </>
                 )}
               </Button>

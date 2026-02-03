@@ -1,102 +1,148 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, UserRole } from '@/types';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { Session } from '@supabase/supabase-js';
 
-interface AuthContextType {
-  user: User | null;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  switchRole: (role: UserRole) => void; // For demo purposes
+// User shape matches our Database Schema
+interface AppUser {
+  id: string;
+  email: string;
+  name: string;
+  role: 'student' | 'teacher' | 'hod';
+  department?: string;
+  enrollmentNumber?: string;
+  year?: number;
+  division?: 'A' | 'B';
+  batch?: 'A' | 'B' | 'C';
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+interface AuthContextType {
+  user: AppUser | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<{ error: any }>;
+  signup: (
+    email: string, 
+    password: string, 
+    name: string, 
+    role: string,
+    division?: string,
+    batch?: string
+  ) => Promise<{ error: any }>;
+  logout: () => Promise<void>;
+}
 
-// Demo users for testing
-const DEMO_USERS: Record<UserRole, User> = {
-  student: {
-    id: 'student-1',
-    email: 'student@college.edu',
-    name: 'John Smith',
-    role: 'student',
-    department: 'Computer Engineering',
-    year: 3,
-    enrollmentNumber: 'CE2022001',
-    createdAt: new Date().toISOString(),
-  },
-  teacher: {
-    id: 'teacher-1',
-    email: 'teacher@college.edu',
-    name: 'Dr. Sarah Johnson',
-    role: 'teacher',
-    department: 'Computer Engineering',
-    createdAt: new Date().toISOString(),
-  },
-  hod: {
-    id: 'hod-1',
-    email: 'hod@college.edu',
-    name: 'Prof. Michael Chen',
-    role: 'hod',
-    department: 'Computer Engineering',
-    createdAt: new Date().toISOString(),
-  },
-};
+const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export function useAuth() {
+  return useContext(AuthContext);
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session in localStorage
-    const storedUser = localStorage.getItem('academic_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    // 1. Check active session on load
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) fetchProfile(session.user.id, session.user.email!);
+      else setLoading(false);
+    });
+
+    // 2. Listen for login/logout/signup events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session?.user) {
+        fetchProfile(session.user.id, session.user.email!);
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Demo login logic - check email domain for role
-    let role: UserRole = 'student';
-    if (email.includes('teacher') || email.includes('faculty')) {
-      role = 'teacher';
-    } else if (email.includes('hod') || email.includes('admin')) {
-      role = 'hod';
+  // Helper: Fetch extra details (Role, Dept) from 'profiles' table
+  async function fetchProfile(userId: string, email: string) {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        setUser({ 
+          id: userId, 
+          email, 
+          name: 'New User', 
+          role: 'student' 
+        });
+      } else {
+        // Map DB snake_case to App camelCase
+        setUser({
+          id: data.id,
+          email: data.email,
+          name: data.name,
+          role: data.role,
+          department: data.department,
+          enrollmentNumber: data.enrollment_number,
+          year: data.year,
+          division: data.division,
+          batch: data.batch
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    
-    const loggedInUser = { ...DEMO_USERS[role], email };
-    setUser(loggedInUser);
-    localStorage.setItem('academic_user', JSON.stringify(loggedInUser));
-    setIsLoading(false);
+  }
+
+  // Actions
+  const login = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    return { error };
   };
 
-  const logout = () => {
+  const signup = async (
+    email: string, 
+    password: string, 
+    name: string, 
+    role: string,
+    division?: string,
+    batch?: string
+  ) => {
+    // Pass metadata to SQL Trigger
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          role, 
+          department: 'Computer Engineering',
+          division,
+          batch
+        },
+      },
+    });
+    return { error };
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('academic_user');
-  };
-
-  // For demo: switch between roles without re-login
-  const switchRole = (role: UserRole) => {
-    const newUser = DEMO_USERS[role];
-    setUser(newUser);
-    localStorage.setItem('academic_user', JSON.stringify(newUser));
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, switchRole }}>
-      {children}
+    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+      {!loading && children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 }

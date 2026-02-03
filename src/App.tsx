@@ -35,72 +35,40 @@ const App = () => (
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
             
-            {/* Protected routes with layout */}
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <MainLayout><Dashboard /></MainLayout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/subjects" element={
-              <ProtectedRoute>
-                <MainLayout><Subjects /></MainLayout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/subjects/:subjectId" element={
-              <ProtectedRoute>
-                <MainLayout><SubjectDetail /></MainLayout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/assignments" element={
-              <ProtectedRoute>
-                <MainLayout><Assignments /></MainLayout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/editor/:assignmentId" element={
-              <ProtectedRoute allowedRoles={['student']}>
-                <MainLayout><EditorPage /></MainLayout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/submissions" element={
-              <ProtectedRoute allowedRoles={['teacher', 'hod']}>
-                <MainLayout><Submissions /></MainLayout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/submissions/:assignmentId" element={
-              <ProtectedRoute allowedRoles={['teacher', 'hod']}>
-                <MainLayout><SubmissionList /></MainLayout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/evaluate/:submissionId" element={
-              <ProtectedRoute allowedRoles={['teacher', 'hod']}>
-                <MainLayout><EvaluatePage /></MainLayout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/reports" element={
-              <ProtectedRoute allowedRoles={['teacher', 'hod']}>
-                <MainLayout><Reports /></MainLayout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/users" element={
-              <ProtectedRoute allowedRoles={['hod']}>
-                <MainLayout><UsersPage /></MainLayout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/settings" element={
-              <ProtectedRoute>
-                <MainLayout><Settings /></MainLayout>
-              </ProtectedRoute>
-            } />
+            {/* Protected Routes Structure */}
+            {/* 1. Check Auth */}
+            <Route element={<ProtectedRoute />}>
+              
+              {/* 2. Apply Layout (Persistent Sidebar) */}
+              <Route element={<MainLayout />}>
+                
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/subjects" element={<Subjects />} />
+                <Route path="/subjects/:subjectId" element={<SubjectDetail />} />
+                <Route path="/assignments" element={<Assignments />} />
+                
+                {/* Student Only */}
+                <Route element={<ProtectedRoute allowedRoles={['student']} />}>
+                   <Route path="/editor/:assignmentId" element={<EditorPage />} />
+                </Route>
+
+                {/* Teachers Only */}
+                <Route element={<ProtectedRoute allowedRoles={['teacher', 'hod']} />}>
+                  <Route path="/submissions" element={<Submissions />} />
+                  <Route path="/submissions/:assignmentId" element={<SubmissionList />} />
+                  <Route path="/evaluate/:submissionId" element={<EvaluatePage />} />
+                  <Route path="/reports" element={<Reports />} />
+                </Route>
+
+                {/* HOD Only */}
+                <Route element={<ProtectedRoute allowedRoles={['hod']} />}>
+                  <Route path="/users" element={<UsersPage />} />
+                </Route>
+
+                <Route path="/settings" element={<Settings />} />
+
+              </Route> {/* End Layout */}
+            </Route> {/* End Auth Protection */}
             
             {/* Redirects */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
