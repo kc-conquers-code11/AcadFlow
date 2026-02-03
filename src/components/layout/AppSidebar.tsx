@@ -33,19 +33,19 @@ interface NavItem {
   title: string;
   url: string;
   icon: React.ElementType;
-  roles: ('student' | 'teacher' | 'hod')[];
+  roles: ('student' | 'teacher' | 'admin')[];
 }
 
 // Base nav items. "Subjects" vs "Batches" is resolved per role below.
 const baseNavItems: NavItem[] = [
-  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, roles: ['student', 'teacher', 'hod'] },
-  { title: 'Assignments', url: '/assignments', icon: FileText, roles: ['student', 'teacher', 'hod'] },
-  { title: 'Submissions', url: '/submissions', icon: Upload, roles: ['teacher', 'hod'] },
-  { title: 'Reports', url: '/reports', icon: BarChart3, roles: ['teacher', 'hod'] },
-  { title: 'Users', url: '/users', icon: Users, roles: ['hod'] },
+  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, roles: ['student', 'teacher', 'admin'] },
+  { title: 'Assignments', url: '/assignments', icon: FileText, roles: ['student', 'teacher', 'admin'] },
+  { title: 'Submissions', url: '/submissions', icon: Upload, roles: ['teacher', 'admin'] },
+  { title: 'Reports', url: '/reports', icon: BarChart3, roles: ['teacher', 'admin'] },
+  { title: 'Users', url: '/users', icon: Users, roles: ['admin'] },
 ];
 
-const subjectsItem: NavItem = { title: 'Subjects', url: '/subjects', icon: BookOpen, roles: ['student', 'hod'] };
+const subjectsItem: NavItem = { title: 'Subjects', url: '/subjects', icon: BookOpen, roles: ['student', 'admin'] };
 const batchesItem: NavItem = { title: 'Batches', url: '/batches', icon: BookOpen, roles: ['teacher'] };
 
 export function AppSidebar() {

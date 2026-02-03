@@ -7,7 +7,7 @@ interface AppUser {
   id: string;
   email: string;
   name: string;
-  role: 'student' | 'teacher' | 'hod';
+  role: 'student' | 'teacher' | 'admin';
   department?: string;
   enrollmentNumber?: string;
   year?: number;

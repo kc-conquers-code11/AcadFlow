@@ -61,14 +61,14 @@ const App = () => (
                   <Route path="/batches" element={<Batches />} />
                   <Route path="/batches/:division/:batch" element={<BatchDashboard />} />
                 </Route>
-                
+
                 {/* Student Only */}
                 <Route element={<ProtectedRoute allowedRoles={['student']} />}>
                   <Route path="/editor/:assignmentId" element={<EditorPage />} />
                 </Route>
 
                 {/* Teachers Only */}
-                <Route element={<ProtectedRoute allowedRoles={['teacher', 'hod']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['teacher', 'admin']} />}>
                   <Route path="/submissions" element={<Submissions />} />
                   <Route path="/submissions/:assignmentId" element={<SubmissionList />} />
                   <Route path="/evaluate/:submissionId" element={<EvaluatePage />} />
@@ -76,7 +76,7 @@ const App = () => (
                 </Route>
 
                 {/* HOD Only */}
-                <Route element={<ProtectedRoute allowedRoles={['hod']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
                   <Route path="/users" element={<UsersPage />} />
                 </Route>
 

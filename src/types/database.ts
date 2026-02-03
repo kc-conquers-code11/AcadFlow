@@ -2,7 +2,7 @@ export interface Profile {
   id: string;
   email: string;
   name: string | null;
-  role: 'student' | 'teacher' | 'hod';
+  role: 'student' | 'teacher' | 'admin';
   department: string | null;
   enrollment_number: string | null;
   year: number | null;

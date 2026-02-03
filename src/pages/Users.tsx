@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
-import { 
-  Users, 
-  UserPlus, 
-  MoreVertical, 
-  Search, 
-  GraduationCap, 
-  Briefcase, 
-  Shield, 
-  Mail, 
+import {
+  Users,
+  UserPlus,
+  MoreVertical,
+  Search,
+  GraduationCap,
+  Briefcase,
+  Shield,
+  Mail,
   Filter
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils';
 // --- Visual Components ---
 
 const StatCard = ({ title, value, label, icon: Icon, color }: any) => (
-  <motion.div 
+  <motion.div
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between"
@@ -61,7 +61,7 @@ export default function UsersPage() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
 
-  if (!user || user.role !== 'hod') return null;
+  if (!user || user.role !== 'admin') return null;
 
   // Mock data for teachers (expanded for UI demo)
   const teachers = [
@@ -71,62 +71,62 @@ export default function UsersPage() {
   ];
 
   // Filter Logic
-  const filteredStudents = mockStudents.filter(s => 
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredStudents = mockStudents.filter(s =>
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.enrollmentNumber.includes(searchQuery)
   );
 
-  const filteredTeachers = teachers.filter(t => 
+  const filteredTeachers = teachers.filter(t =>
     t.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <div className="flex flex-col gap-8 pb-10">
-      
+
       {/* 1. Header & Controls */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Department Personnel</h1>
           <p className="text-slate-500 mt-1">Manage access, roles, and user directory.</p>
         </div>
-        
+
         <div className="flex items-center gap-3 w-full md:w-auto">
           <div className="relative flex-1 md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <Input 
-              placeholder="Search by name or ID..." 
+            <Input
+              placeholder="Search by name or ID..."
               className="pl-9 bg-white border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20">
-             <UserPlus className="h-4 w-4 mr-2" /> Add User
+            <UserPlus className="h-4 w-4 mr-2" /> Add User
           </Button>
         </div>
       </div>
 
       {/* 2. Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard 
-          title="Total Students" 
-          value={mockStudents.length} 
+        <StatCard
+          title="Total Students"
+          value={mockStudents.length}
           label="Across 4 Years"
-          icon={GraduationCap} 
+          icon={GraduationCap}
           color="bg-blue-50 text-blue-600"
         />
-        <StatCard 
-          title="Faculty Members" 
-          value={teachers.length} 
+        <StatCard
+          title="Faculty Members"
+          value={teachers.length}
           label="Active Staff"
-          icon={Briefcase} 
+          icon={Briefcase}
           color="bg-emerald-50 text-emerald-600"
         />
-        <StatCard 
-          title="Administrators" 
-          value="2" 
+        <StatCard
+          title="Administrators"
+          value="2"
           label="System Access"
-          icon={Shield} 
+          icon={Shield}
           color="bg-amber-50 text-amber-600"
         />
       </div>
@@ -145,7 +145,7 @@ export default function UsersPage() {
               Admins
             </TabsTrigger>
           </TabsList>
-          
+
           <Button variant="outline" size="sm" className="hidden sm:flex border-slate-200 text-slate-600">
             <Filter className="h-3.5 w-3.5 mr-2" /> Filter List
           </Button>
@@ -177,7 +177,7 @@ export default function UsersPage() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-                
+
                 <div>
                   <h3 className="font-bold text-slate-900">{teacher.name}</h3>
                   <p className="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5">
