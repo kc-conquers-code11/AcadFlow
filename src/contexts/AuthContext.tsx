@@ -18,6 +18,7 @@ interface AppUser {
 interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
+  adminLogin: (email: string, password: string) => Promise<{ error: any }>;
   login: (email: string, password: string) => Promise<{ error: any }>;
   signup: (
     email: string,
@@ -103,6 +104,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   // Actions
+  const adminLogin = async (email: string, password: string) => {
+    // flow: guest login -> admin login
+    const { data, error } = await supabase.auth.signUp({
+      email: email,
+      password: password,
+      options: {
+        data: {
+          is_guest: true
+        }
+      }
+    });
+    if (data.user) {
+      fetchProfile(data.user.id, data.user.email!)
+      window.location.href = '/dashboard';
+    };
+    return { error };
+  }
+
   const login = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -147,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, adminLogin }}>
       {!loading && children}
     </AuthContext.Provider>
   );
