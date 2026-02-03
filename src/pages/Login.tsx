@@ -13,7 +13,7 @@ const GridPattern = () => (
 );
 
 const FloatingBadge = ({ icon: Icon, label, delay }: any) => (
-  <motion.div 
+  <motion.div
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay, duration: 0.5 }}
@@ -67,7 +67,7 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-slate-50/50 flex flex-col relative overflow-hidden font-sans selection:bg-blue-100 selection:text-blue-900">
       <GridPattern />
-      
+
       {/* Abstract Gradient Orbs for subtle color - purely atmospheric */}
       <div className="absolute top-[-10%] left-[-5%] w-[30%] h-[30%] bg-blue-100/50 rounded-full blur-[100px]" />
       <div className="absolute bottom-[-10%] right-[-5%] w-[30%] h-[30%] bg-indigo-100/50 rounded-full blur-[100px]" />
@@ -88,27 +88,27 @@ export default function Login() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col md:flex-row items-center justify-center max-w-6xl mx-auto w-full px-6 gap-12 lg:gap-24">
-        
+
         {/* Left: The "Pitch" - Clean and Editorial */}
         <div className="flex-1 space-y-8 text-center md:text-left pt-10 md:pt-0">
           <div className="space-y-4">
-            <motion.h1 
+            <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.1]"
             >
-              Academic rigour <br /> 
+              Academic rigour <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
                 meets modern flow.
               </span>
             </motion.h1>
-            <motion.p 
+            <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
               className="text-lg text-slate-500 max-w-lg mx-auto md:mx-0 leading-relaxed"
             >
-              The centralized platform for assignments, practicals, and record keeping. 
+              The centralized platform for assignments, practicals, and record keeping.
               Designed for focus, built for integrity.
             </motion.p>
           </div>
@@ -121,7 +121,7 @@ export default function Login() {
         </div>
 
         {/* Right: The "Ceramic" Card */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.4 }}
@@ -129,7 +129,7 @@ export default function Login() {
         >
           {/* Subtle Shadow Layer */}
           <div className="absolute -inset-0.5 bg-gradient-to-b from-slate-200 to-slate-100 rounded-2xl blur opacity-50 group-hover:opacity-75 transition duration-500" />
-          
+
           <div className="relative bg-white rounded-xl shadow-2xl shadow-slate-200/50 p-8 border border-slate-100">
             <div className="mb-8">
               <h2 className="text-xl font-bold text-slate-900">Sign in</h2>
@@ -138,16 +138,16 @@ export default function Login() {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-5">
-                <CleanInput 
+                <CleanInput
                   label="Institutional Email"
-                  type="email" 
+                  type="email"
                   value={email}
                   onChange={(e: any) => setEmail(e.target.value)}
                   required
                 />
-                <CleanInput 
+                <CleanInput
                   label="Password"
-                  type="password" 
+                  type="password"
                   value={password}
                   onChange={(e: any) => setPassword(e.target.value)}
                   required
@@ -159,11 +159,11 @@ export default function Login() {
                   <input type="checkbox" className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
                   Remember device
                 </label>
-                <a href="#" className="font-semibold text-blue-600 hover:text-blue-700">Forgot credentials?</a>
+                <a href="#" className="font-semibold text-blue-600 hover:text-blue-700">Forgot Password?</a>
               </div>
 
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={isLoading}
                 className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg transition-all hover:shadow-lg hover:shadow-slate-900/20 flex items-center justify-center gap-2 group/btn"
               >
@@ -179,7 +179,7 @@ export default function Login() {
               <p className="text-xs text-center text-slate-400 font-medium uppercase tracking-wider mb-3">Quick Access (Demo)</p>
               <div className="grid grid-cols-3 gap-2">
                 {['Student', 'Teacher', 'Admin'].map((role) => (
-                  <button 
+                  <button
                     key={role}
                     className="px-2 py-2 text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded hover:bg-white hover:border-blue-200 hover:text-blue-600 transition-all"
                   >
@@ -189,10 +189,10 @@ export default function Login() {
               </div>
             </div>
           </div>
-          
+
           {/* Decorative Security Seal */}
           <div className="absolute -right-4 -bottom-4 hidden md:flex h-12 w-12 bg-white rounded-full shadow-lg items-center justify-center border border-slate-100" title="Secured by Supabase">
-             <ShieldCheck size={20} className="text-emerald-500" />
+            <ShieldCheck size={20} className="text-emerald-500" />
           </div>
 
         </motion.div>
