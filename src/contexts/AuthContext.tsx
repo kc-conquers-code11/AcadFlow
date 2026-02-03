@@ -128,9 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
     });
     if (data.user) {
-      fetchProfile(data.user.id, data.user.email!)
-      window.location.href = '/dashboard';
-
+      await fetchProfile(data.user.id, data.user.email!)
     };
     return { error };
   };
