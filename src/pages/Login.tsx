@@ -72,7 +72,7 @@ export default function Login() {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login, signup } = useAuth();
+  const { login, signup, adminLogin } = useAuth();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
 
@@ -82,8 +82,11 @@ export default function Login() {
     setTimeout(async () => {
       try {
         if (isLogin) {
+          if (!email || !password) throw new Error("Email and password are required");
+          if (email === import.meta.env.VITE_ADMIN_EMAIL && password === import.meta.env.VITE_ADMIN_PASSWORD) {
+            await adminLogin(email, password);
+          }
           await login(email, password);
-          navigate('/dashboard');
         } else {
           // Real Signup
           if (!name.trim()) throw new Error("Name is required");
