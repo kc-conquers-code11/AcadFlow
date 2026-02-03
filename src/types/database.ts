@@ -48,3 +48,32 @@ export interface Submission {
   feedback: string | null;
   plagiarism_score: number;
 }
+
+/** Teacher batch flow: assignments per division/batch (separate from subject-based assignments) */
+export interface BatchAssignment {
+  id: string;
+  title: string;
+  description: string | null;
+  deadline: string;
+  division: 'A' | 'B';
+  batch: 'A' | 'B' | 'C';
+  quiz_questions: { question: string; options: string[]; correct_index: number }[];
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Teacher batch flow: practicals per division/batch */
+export interface BatchPractical {
+  id: string;
+  title: string;
+  description: string | null;
+  deadline: string;
+  division: 'A' | 'B';
+  batch: 'A' | 'B' | 'C';
+  practical_mode: 'code' | 'no-code';
+  programming_language: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
