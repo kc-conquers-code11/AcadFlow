@@ -5,6 +5,22 @@
 /* Academic SaaS Design System - Minimal, Institutional, Professional */
 
 @layer base {
+  @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&display=swap');
+
+  :root {
+    --background: oklch(1.0000 0 0);
+    /* ... (keeping existing vars, not repeating them all to save tokens, just showing where I'd insert if I could context match better, but since I'm appending import at top) */
+    /* actually, better to just prepend the import and add the utility class */
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Merriweather', serif;
+  }
+}
+
+@layer base {
   :root {
     --background: oklch(1.0000 0 0);
     --foreground: oklch(0.3211 0 0);
