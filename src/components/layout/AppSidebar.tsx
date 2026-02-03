@@ -68,14 +68,18 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
 
       {/* 1. HEADER: Brand Identity */}
-      <SidebarHeader className="h-16 flex items-center justify-center border-b border-sidebar-border px-4">
-        <div className="flex items-center gap-3 w-full overflow-hidden transition-all group-data-[collapsible=icon]:justify-center">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-md shadow-primary/20">
-            <GraduationCap className="h-5 w-5" />
-          </div>
-          <div className="flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
-            <span className="font-bold text-sidebar-foreground text-sm">AcadFlow</span>
-            <span className="text-[10px] text-muted-foreground font-medium">Computer Engg.</span>
+      <SidebarHeader className="h-24 flex items-center justify-center border-b border-sidebar-border px-4 group-data-[collapsible=icon]:px-0">
+        <div className="flex items-center gap-0 w-full overflow-hidden transition-all group-data-[collapsible=icon]:justify-center">
+          <img
+            src="/images/logo.png"
+            alt="AcadFlow"
+            className="h-20 w-auto object-contain shrink-0 transition-all group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10"
+          />
+          <div className="flex flex-col leading-none group-data-[collapsible=icon]:hidden">
+            <span className="font-bold text-2xl tracking-tight font-display">
+              <span className="text-primary">Acad</span>
+              <span className="text-sidebar-foreground">Flow</span>
+            </span>
           </div>
         </div>
       </SidebarHeader>
