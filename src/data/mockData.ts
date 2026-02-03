@@ -166,6 +166,8 @@ export const mockStudents: User[] = [
     department: 'Computer Engineering',
     year: 3,
     enrollmentNumber: 'CE2022001',
+    batch: 'A',
+    division: 'A',
     createdAt: '2023-08-01T00:00:00Z',
   },
   {
@@ -176,6 +178,8 @@ export const mockStudents: User[] = [
     department: 'Computer Engineering',
     year: 3,
     enrollmentNumber: 'CE2022002',
+    batch: 'A',
+    division: 'B',
     createdAt: '2023-08-01T00:00:00Z',
   },
   {
@@ -186,6 +190,8 @@ export const mockStudents: User[] = [
     department: 'Computer Engineering',
     year: 3,
     enrollmentNumber: 'CE2022003',
+    batch: 'B',
+    division: 'A',
     createdAt: '2023-08-01T00:00:00Z',
   },
   {
@@ -196,6 +202,8 @@ export const mockStudents: User[] = [
     department: 'Computer Engineering',
     year: 3,
     enrollmentNumber: 'CE2022004',
+    batch: 'C',
+    division: 'B',
     createdAt: '2023-08-01T00:00:00Z',
   },
 ];

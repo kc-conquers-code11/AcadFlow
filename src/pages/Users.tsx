@@ -10,7 +10,10 @@ import {
   Briefcase,
   Shield,
   Mail,
-  Filter
+  Filter,
+  Edit,
+  Trash2,
+  CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,36 +25,50 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { mockStudents } from '@/data/mockData';
 import { cn } from '@/lib/utils';
+import { NativeTabs } from '@/components/custom/NativeTabs';
+import { AddUserModal } from '@/components/users/AddUserModal';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 // --- Visual Components ---
 
-const StatCard = ({ title, value, label, icon: Icon, color }: any) => (
+const StatCard = ({ title, value, label, icon: Icon, className }: any) => (
   <motion.div
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
-    className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between"
+    className={cn("bg-card text-card-foreground rounded-xl border p-5 shadow-sm flex items-center justify-between", className)}
   >
     <div>
-      <h3 className="text-2xl font-bold text-slate-900">{value}</h3>
-      <p className="text-sm font-medium text-slate-500">{title}</p>
-      {label && <p className="text-xs text-slate-400 mt-1">{label}</p>}
+      <h3 className="text-2xl font-bold">{value}</h3>
+      <p className="text-sm font-medium text-muted-foreground">{title}</p>
+      {label && <p className="text-xs text-muted-foreground/80 mt-1">{label}</p>}
     </div>
-    <div className={cn("p-3 rounded-xl", color)}>
-      <Icon size={20} />
+    <div className={cn("p-3 rounded-xl bg-muted")}>
+      <Icon size={20} className="text-primary" />
     </div>
   </motion.div>
 );
 
 const UserAvatar = ({ name, src, size = "md" }: { name: string, src?: string, size?: "sm" | "md" }) => (
   <Avatar className={cn(
-    "border-2 border-white shadow-sm",
+    "border-2 border-background shadow-sm",
     size === "sm" ? "h-8 w-8" : "h-10 w-10"
   )}>
     <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${name}`} />
-    <AvatarFallback className="bg-slate-100 text-slate-600 font-bold">
+    <AvatarFallback className="bg-muted text-muted-foreground font-bold">
       {name.charAt(0)}
     </AvatarFallback>
   </Avatar>
@@ -60,10 +77,15 @@ const UserAvatar = ({ name, src, size = "md" }: { name: string, src?: string, si
 export default function UsersPage() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<"student" | "faculty" | "admin">("student");
+
+  const [batchFilter, setBatchFilter] = useState<string>('all');
+  const [divisionFilter, setDivisionFilter] = useState<string>('all');
 
   if (!user || user.role !== 'admin') return null;
 
-  // Mock data for teachers (expanded for UI demo)
+  // Mock data for teachers 
   const teachers = [
     { id: 't1', name: 'Dr. Sarah Johnson', email: 'sarah.j@college.edu', role: 'Professor', subjects: 3, status: 'Active' },
     { id: 't2', name: 'Prof. Robert Williams', email: 'r.williams@college.edu', role: 'Assistant Prof', subjects: 2, status: 'Active' },
@@ -71,88 +93,42 @@ export default function UsersPage() {
   ];
 
   // Filter Logic
-  const filteredStudents = mockStudents.filter(s =>
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.enrollmentNumber.includes(searchQuery)
-  );
+  const filteredStudents = mockStudents.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (s.enrollmentNumber && s.enrollmentNumber.includes(searchQuery));
+    const matchesBatch = batchFilter === 'all' || s.batch === batchFilter;
+    const matchesDivision = divisionFilter === 'all' || s.division === divisionFilter;
+
+    return matchesSearch && matchesBatch && matchesDivision;
+  });
 
   const filteredTeachers = teachers.filter(t =>
     t.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  return (
-    <div className="flex flex-col gap-8 pb-10">
+  const openModal = (type: "student" | "faculty" | "admin") => {
+    setModalType(type);
+    setIsModalOpen(true);
+  };
 
-      {/* 1. Header & Controls */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Department Personnel</h1>
-          <p className="text-slate-500 mt-1">Manage access, roles, and user directory.</p>
-        </div>
+  const hasActiveFilters = batchFilter !== 'all' || divisionFilter !== 'all';
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <Input
-              placeholder="Search by name or ID..."
-              className="pl-9 bg-white border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+  const tabItems = [
+    {
+      id: "faculty",
+      label: "Faculty",
+      content: (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold tracking-tight">Faculty Directory</h2>
+              <Badge variant="secondary">{filteredTeachers.length}</Badge>
+            </div>
+            <Button onClick={() => openModal('faculty')} className="bg-primary hover:bg-primary/90">
+              <UserPlus className="h-4 w-4 mr-2" /> Add Faculty
+            </Button>
           </div>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20">
-            <UserPlus className="h-4 w-4 mr-2" /> Add User
-          </Button>
-        </div>
-      </div>
 
-      {/* 2. Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard
-          title="Total Students"
-          value={mockStudents.length}
-          label="Across 4 Years"
-          icon={GraduationCap}
-          color="bg-blue-50 text-blue-600"
-        />
-        <StatCard
-          title="Faculty Members"
-          value={teachers.length}
-          label="Active Staff"
-          icon={Briefcase}
-          color="bg-emerald-50 text-emerald-600"
-        />
-        <StatCard
-          title="Administrators"
-          value="2"
-          label="System Access"
-          icon={Shield}
-          color="bg-amber-50 text-amber-600"
-        />
-      </div>
-
-      {/* 3. Main Content Tabs */}
-      <Tabs defaultValue="faculty" className="space-y-6">
-        <div className="flex items-center justify-between">
-          <TabsList className="bg-white border border-slate-200 p-1 rounded-lg">
-            <TabsTrigger value="faculty" className="data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 text-slate-500">
-              Faculty
-            </TabsTrigger>
-            <TabsTrigger value="students" className="data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 text-slate-500">
-              Students
-            </TabsTrigger>
-            <TabsTrigger value="admins" className="data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 text-slate-500">
-              Admins
-            </TabsTrigger>
-          </TabsList>
-
-          <Button variant="outline" size="sm" className="hidden sm:flex border-slate-200 text-slate-600">
-            <Filter className="h-3.5 w-3.5 mr-2" /> Filter List
-          </Button>
-        </div>
-
-        {/* Tab: Faculty */}
-        <TabsContent value="faculty" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredTeachers.map((teacher, i) => (
               <motion.div
@@ -160,90 +136,303 @@ export default function UsersPage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.1 }}
-                className="group bg-white border border-slate-200 rounded-xl p-5 hover:shadow-md transition-all"
+                className="group bg-card border rounded-xl p-5 hover:shadow-md transition-all"
               >
                 <div className="flex justify-between items-start mb-4">
                   <UserAvatar name={teacher.name} />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                         <MoreVertical size={16} />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>Edit Profile</DropdownMenuItem>
-                      <DropdownMenuItem>Assign Subjects</DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-600">Deactivate</DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Edit className="mr-2 h-4 w-4" /> Edit Profile
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Briefcase className="mr-2 h-4 w-4" /> Assign Subjects
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive focus:text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" /> Deactivate
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
 
                 <div>
-                  <h3 className="font-bold text-slate-900">{teacher.name}</h3>
-                  <p className="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5">
+                  <h3 className="font-bold text-foreground">{teacher.name}</h3>
+                  <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
                     <Mail size={12} /> {teacher.email}
                   </p>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-medium">
-                  <span className="text-slate-500">{teacher.role}</span>
+                <div className="mt-4 pt-4 border-t flex items-center justify-between text-xs font-medium">
+                  <span className="text-muted-foreground">{teacher.role}</span>
                   <div className="flex gap-2">
-                    <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-slate-200">
+                    <Badge variant="secondary">
                       {teacher.subjects} Subjects
                     </Badge>
                   </div>
                 </div>
               </motion.div>
             ))}
+            {filteredTeachers.length === 0 && (
+              <div className="col-span-full py-10 text-center text-muted-foreground">
+                No faculty found matching the search.
+              </div>
+            )}
           </div>
-        </TabsContent>
+        </div>
+      )
+    },
+    {
+      id: "students",
+      label: "Students",
+      content: (
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold tracking-tight">Student Directory</h2>
+              <Badge variant="secondary">{filteredStudents.length}</Badge>
+            </div>
 
-        {/* Tab: Students */}
-        <TabsContent value="students">
-          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              {/* Filters */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("gap-2", hasActiveFilters && "bg-muted text-foreground border-primary/50")}>
+                    <Filter className="h-4 w-4" />
+                    Filter
+                    {hasActiveFilters && (
+                      <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-4" align="end">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <h4 className="font-medium leading-none">Filter Students</h4>
+                      <p className="text-sm text-muted-foreground">Filter directory by batch and division.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Batch</label>
+                      <Select value={batchFilter} onValueChange={setBatchFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Batch" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Batches</SelectItem>
+                          <SelectItem value="A">Batch A</SelectItem>
+                          <SelectItem value="B">Batch B</SelectItem>
+                          <SelectItem value="C">Batch C</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Division</label>
+                      <Select value={divisionFilter} onValueChange={setDivisionFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Division" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Divisions</SelectItem>
+                          <SelectItem value="A">Division A</SelectItem>
+                          <SelectItem value="B">Division B</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {hasActiveFilters && (
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-center text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          setBatchFilter('all');
+                          setDivisionFilter('all');
+                        }}
+                      >
+                        Reset Filters
+                      </Button>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <Button onClick={() => openModal('student')} className="bg-primary hover:bg-primary/90">
+                <UserPlus className="h-4 w-4 mr-2" /> Add Student
+              </Button>
+            </div>
+          </div>
+
+          <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
-                <thead className="bg-slate-50/80 text-slate-500 font-medium border-b border-slate-200">
+                <thead className="bg-muted/50 text-muted-foreground font-medium border-b">
                   <tr>
                     <th className="px-6 py-4">Student Profile</th>
-                    <th className="px-6 py-4">Enrollment ID</th>
+                    <th className="px-6 py-4">Enrolment ID</th>
+                    <th className="px-6 py-4">Batch / Div</th>
                     <th className="px-6 py-4">Year</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y">
                   {filteredStudents.map((student) => (
-                    <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={student.id} className="hover:bg-muted/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <UserAvatar name={student.name} size="sm" />
                           <div>
-                            <div className="font-bold text-slate-900">{student.name}</div>
-                            <div className="text-xs text-slate-400">{student.email}</div>
+                            <div className="font-bold text-foreground">{student.name}</div>
+                            <div className="text-xs text-muted-foreground">{student.email}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 font-mono text-slate-600">
+                      <td className="px-6 py-4 font-mono text-muted-foreground">
                         {student.enrollmentNumber}
                       </td>
                       <td className="px-6 py-4">
-                        <Badge variant="outline" className="bg-slate-50 border-slate-200 text-slate-600">
-                          Year {student.year}
-                        </Badge>
+                        <div className="flex gap-2">
+                          {student.batch && (
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "border opacity-90",
+                                student.batch === 'A' && "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800",
+                                student.batch === 'B' && "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800",
+                                student.batch === 'C' && "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800",
+                              )}
+                            >
+                              Batch {student.batch}
+                            </Badge>
+                          )}
+                          {student.division && (
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "border opacity-90",
+                                student.division === 'A' && "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/20 dark:text-violet-300 dark:border-violet-800",
+                                student.division === 'B' && "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-800",
+                              )}
+                            >
+                              Div {student.division}
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-muted-foreground">Year {student.year}</span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600">
-                          <MoreVertical size={16} />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                              <MoreVertical size={16} />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>
+                              <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive focus:text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   ))}
+                  {filteredStudents.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 flex flex-col items-center justify-center text-center text-muted-foreground">
+                        <div className="bg-muted p-4 rounded-full mb-3">
+                          <Search className="h-6 w-6 opacity-40" />
+                        </div>
+                        <p className="font-medium">No students found.</p>
+                        <p className="text-xs opacity-70 max-w-[200px] mt-1">Try adjusting your filters or search query.</p>
+                        {hasActiveFilters && (
+                          <Button variant="link" size="sm" onClick={() => { setBatchFilter('all'); setDivisionFilter('all'); setSearchQuery(''); }}>
+                            Clear all filters
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )
+    },
+    {
+      id: "admins",
+      label: "Admins",
+      content: (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold tracking-tight">Administrators</h2>
+              <Badge variant="secondary">2</Badge>
+            </div>
+            <Button onClick={() => openModal('admin')} className="bg-primary hover:bg-primary/90">
+              <UserPlus className="h-4 w-4 mr-2" /> Add Admin
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <motion.div className="bg-card border rounded-xl p-5 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <UserAvatar name="Admin User" />
+                <div>
+                  <h3 className="font-bold">Current Admin</h3>
+                  <p className="text-sm text-muted-foreground">admin@college.edu</p>
+                </div>
+              </div>
+              <Badge>Super Admin</Badge>
+            </motion.div>
+            {/* Add more admin cards/list here */}
+          </div>
+        </div>
+      )
+    }
+  ];
+
+  return (
+    <div className="flex flex-col gap-8 pb-10">
+
+      {/* 1. Header & Controls */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Personnel Management</h1>
+          <p className="text-muted-foreground mt-1">Manage system access, roles, and faculty directory.</p>
+        </div>
+
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="relative flex-1 md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+            <Input
+              placeholder="Search personnel..."
+              className="pl-9 bg-background focus:ring-primary/20"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Main Content Items */}
+      <NativeTabs
+        items={tabItems}
+        defaultValue="faculty"
+        className="w-full max-w-none"
+      />
+
+      <AddUserModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        type={modalType}
+      />
     </div>
   );
 }

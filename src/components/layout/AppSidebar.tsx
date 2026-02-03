@@ -39,8 +39,8 @@ interface NavItem {
 // Base nav items. "Subjects" vs "Batches" is resolved per role below.
 const baseNavItems: NavItem[] = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, roles: ['student', 'teacher', 'admin'] },
-  { title: 'Assignments', url: '/assignments', icon: FileText, roles: ['student', 'teacher', 'admin'] },
-  { title: 'Submissions', url: '/submissions', icon: Upload, roles: ['teacher', 'admin'] },
+  { title: 'Assignments', url: '/assignments', icon: FileText, roles: ['student', 'teacher'] },
+  { title: 'Submissions', url: '/submissions', icon: Upload, roles: ['teacher'] },
   { title: 'Reports', url: '/reports', icon: BarChart3, roles: ['teacher', 'admin'] },
   { title: 'Users', url: '/users', icon: Users, roles: ['admin'] },
 ];
