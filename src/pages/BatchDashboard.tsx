@@ -1,9 +1,10 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ArrowLeft, Loader2, Plus, BookOpen, FileText, Search } from 'lucide-react';
 import { BatchPracticalsTable } from '@/components/teacher/BatchPracticalsTable';
 import { BatchAssignmentsTable } from '@/components/teacher/BatchAssignmentsTable';
 import { BatchTaskModal, BatchTaskFormValues } from '@/components/teacher/BatchTaskModal';
@@ -20,9 +21,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { toast } from 'sonner';
-
-const MOCK_TOTAL_STUDENTS = 30;
 
 /** Convert ISO deadline from DB to datetime-local input value (local time) */
 function toLocalDateTimeInput(iso: string): string {
@@ -39,6 +40,8 @@ function toLocalDateTimeInput(iso: string): string {
 function deadlineToISO(local: string): string {
   return new Date(local).toISOString();
 }
+
+const MOCK_TOTAL_STUDENTS = 30;
 
 function mapPracticalToRow(row: BatchPractical): BatchTaskRow {
   const total = MOCK_TOTAL_STUDENTS;
@@ -122,6 +125,13 @@ export default function BatchDashboard() {
   const [deleteTarget, setDeleteTarget] = useState<{ row: BatchTaskRow; type: 'practical' | 'assignment' } | null>(null);
   const [copyTarget, setCopyTarget] = useState<{ row: BatchTaskRow; type: 'practical' | 'assignment' } | null>(null);
   const [copying, setCopying] = useState(false);
+  const [activeTab, setActiveTab] = useState('practicals');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const [sortConfig, setSortConfig] = useState<{
+    key: 'submittedCount' | 'submittedPercent';
+    direction: 'asc' | 'desc';
+  } | null>(null);
 
   const divNorm = normalizeDivision(division ?? '');
   const batchNorm = normalizeBatch(batch ?? '');
@@ -165,11 +175,67 @@ export default function BatchDashboard() {
     fetchData();
   }, [fetchData]);
 
+  const handleSort = (key: 'submittedCount' | 'submittedPercent') => {
+    setSortConfig((current) => {
+      if (current?.key === key) {
+        if (current.direction === 'asc') return { key, direction: 'desc' };
+        return null; // Reset to default sort
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const filteredPracticals = useMemo(() => {
+    let result = practicals;
+    if (searchQuery) {
+      const lower = searchQuery.toLowerCase();
+      result = result.filter(p =>
+        (p.title || '').toLowerCase().includes(lower) ||
+        (p.description || '').toLowerCase().includes(lower)
+      );
+    }
+    if (sortConfig) {
+      result = [...result].sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return result;
+  }, [practicals, searchQuery, sortConfig]);
+
+  const filteredAssignments = useMemo(() => {
+    let result = assignments;
+    if (searchQuery) {
+      const lower = searchQuery.toLowerCase();
+      result = result.filter(a =>
+        (a.title || '').toLowerCase().includes(lower) ||
+        (a.description || '').toLowerCase().includes(lower)
+      );
+    }
+    if (sortConfig) {
+      result = [...result].sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return result;
+  }, [assignments, searchQuery, sortConfig]);
+
   if (!user) return null;
   if (!division || !batch) {
     return (
-      <div className="py-10 text-slate-500">
-        Missing division or batch. <Link to="/batches" className="text-blue-600 underline">Back to Batches</Link>
+      <div className="py-10 text-muted-foreground">
+        Missing division or batch. <Link to="/batches" className="text-primary underline">Back to Batches</Link>
       </div>
     );
   }
@@ -187,6 +253,14 @@ export default function BatchDashboard() {
     setModalType('assignment');
     setModalOpen(true);
   }, []);
+
+  const handleAddClick = useCallback(() => {
+    if (activeTab === 'practicals') {
+      openAddPractical();
+    } else {
+      openAddAssignment();
+    }
+  }, [activeTab, openAddPractical, openAddAssignment]);
 
   const openEditPractical = useCallback((row: BatchTaskRow) => {
     setEditingRow(row);
@@ -381,60 +455,126 @@ export default function BatchDashboard() {
 
   const modalInitialValues: BatchTaskFormValues | null = editingRow
     ? {
-        title: editingRow.title,
-        description: editingRow.description,
-        deadline: editingRow.deadline ? toLocalDateTimeInput(editingRow.deadline) : '',
-        type: modalType,
-        practicalMode: editingRow.practicalMode ?? 'code',
-        quizQuestions: editingRow.quizQuestions ?? [],
-      }
+      title: editingRow.title,
+      description: editingRow.description,
+      deadline: editingRow.deadline ? toLocalDateTimeInput(editingRow.deadline) : '',
+      type: modalType,
+      practicalMode: editingRow.practicalMode ?? 'code',
+      quizQuestions: editingRow.quizQuestions ?? [],
+    }
     : null;
 
   if (loading) {
     return (
       <div className="flex h-[50vh] w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-8 pb-10">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" className="text-slate-500 -ml-2" asChild>
+    <div className="flex flex-col gap-8 p-6 pb-10 min-h-[calc(100vh-4rem)] bg-background">
+      {/* Header Section */}
+      <div className="flex flex-col gap-4">
+        <Button variant="ghost" size="sm" className="w-fit text-muted-foreground hover:text-foreground -ml-2" asChild>
           <Link to="/batches">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Batches
           </Link>
         </Button>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              {divisionLabel} · {batchLabel}
+            </h1>
+            <p className="text-muted-foreground">Manage practicals and assignments for this batch.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative w-64 hidden sm:block">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                type="search"
+                placeholder="Search..."
+                className="pl-9 bg-background"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Button onClick={handleAddClick} className="shadow-sm">
+              <Plus className="mr-2 h-4 w-4" />
+              Add {activeTab === 'practicals' ? 'Practical' : 'Assignment'}
+            </Button>
+          </div>
+        </div>
+        {/* Mobile Search */}
+        <div className="relative sm:hidden">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            type="search"
+            placeholder="Search experiments..."
+            className="pl-9 bg-background"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
       </div>
 
-      <header className="border-b border-slate-200 pb-4">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          {divisionLabel} · {batchLabel}
-        </h1>
-        <p className="text-slate-500 mt-1">Manage practicals and assignments for this batch.</p>
-      </header>
+      {/* Main Content */}
+      <Card className="border-border/50 shadow-sm bg-card">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <CardHeader className="border-b px-6 py-4">
+            <div className="flex items-center justify-between">
+              <TabsList className="bg-muted">
+                <TabsTrigger value="practicals" className="gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  Practicals
+                </TabsTrigger>
+                <TabsTrigger value="assignments" className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  Assignments
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          </CardHeader>
 
-      <BatchPracticalsTable
-        division={division}
-        batch={batch}
-        items={practicals}
-        onAdd={openAddPractical}
-        onEdit={openEditPractical}
-        onCopy={handleCopyPractical}
-        onDelete={handleDeletePractical}
-      />
+          <CardContent className="p-0">
+            <TabsContent value="practicals" className="m-0 border-none outline-none">
+              <div className="p-6">
+                <BatchPracticalsTable
+                  division={division}
+                  batch={batch}
+                  items={filteredPracticals}
+                  onAdd={openAddPractical}
+                  onEdit={openEditPractical}
+                  onCopy={handleCopyPractical}
+                  onDelete={handleDeletePractical}
+                  hideHeader
+                  sortConfig={sortConfig}
+                  onSort={handleSort}
+                />
+              </div>
+            </TabsContent>
 
-      <BatchAssignmentsTable
-        division={division}
-        batch={batch}
-        items={assignments}
-        onAdd={openAddAssignment}
-        onEdit={openEditAssignment}
-        onCopy={handleCopyAssignment}
-        onDelete={handleDeleteAssignment}
-      />
+            <TabsContent value="assignments" className="m-0 border-none outline-none">
+              <div className="p-6">
+                <BatchAssignmentsTable
+                  division={division}
+                  batch={batch}
+                  items={filteredAssignments}
+                  onAdd={openAddAssignment}
+                  onEdit={openEditAssignment}
+                  onCopy={handleCopyAssignment}
+                  onDelete={handleDeleteAssignment}
+                  hideHeader
+                  sortConfig={sortConfig}
+                  onSort={handleSort}
+                />
+              </div>
+            </TabsContent>
+          </CardContent>
+        </Tabs>
+      </Card>
 
       <CopyToBatchModal
         open={!!copyTarget}

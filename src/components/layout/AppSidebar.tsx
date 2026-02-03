@@ -1,15 +1,18 @@
 import { useLocation, Link } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  BookOpen, 
-  FileText, 
-  Upload, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  BookOpen,
+  FileText,
+  Upload,
+  BarChart3,
   Settings,
   Users,
   LogOut,
-  GraduationCap
+  GraduationCap,
+  Sun,
+  Moon
 } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Sidebar,
@@ -47,6 +50,7 @@ const batchesItem: NavItem = { title: 'Batches', url: '/batches', icon: BookOpen
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
+  const { theme, setTheme } = useTheme();
   const location = useLocation();
 
   if (!user) return null;
@@ -61,17 +65,17 @@ export function AppSidebar() {
   const filteredItems = navItems.filter((item) => item.roles.includes(user.role));
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-slate-200 bg-slate-50/50">
-      
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+
       {/* 1. HEADER: Brand Identity */}
-      <SidebarHeader className="h-16 flex items-center justify-center border-b border-slate-200/60 px-4">
+      <SidebarHeader className="h-16 flex items-center justify-center border-b border-sidebar-border px-4">
         <div className="flex items-center gap-3 w-full overflow-hidden transition-all group-data-[collapsible=icon]:justify-center">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-md shadow-blue-600/20">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-md shadow-primary/20">
             <GraduationCap className="h-5 w-5" />
           </div>
           <div className="flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
-            <span className="font-bold text-slate-800 text-sm">AcadFlow</span>
-            <span className="text-[10px] text-slate-500 font-medium">Computer Engg.</span>
+            <span className="font-bold text-sidebar-foreground text-sm">AcadFlow</span>
+            <span className="text-[10px] text-muted-foreground font-medium">Computer Engg.</span>
           </div>
         </div>
       </SidebarHeader>
@@ -79,10 +83,10 @@ export function AppSidebar() {
       {/* 2. CONTENT: Navigation Links */}
       <SidebarContent className="px-2 py-4">
         <SidebarMenu>
-          <div className="px-2 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider group-data-[collapsible=icon]:hidden">
+          <div className="px-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsible=icon]:hidden">
             Workspace
           </div>
-          
+
           {filteredItems.map((item) => {
             const isActive = location.pathname === item.url;
             return (
@@ -92,13 +96,13 @@ export function AppSidebar() {
                   tooltip={item.title}
                   className={cn(
                     "h-10 transition-all duration-200 mb-1",
-                    isActive 
-                      ? "bg-white text-blue-700 shadow-sm border border-slate-200 font-medium" 
-                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/80"
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm border border-sidebar-border font-medium"
+                      : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                   )}
                 >
                   <Link to={item.url}>
-                    <item.icon className={cn("h-4 w-4", isActive ? "text-blue-600" : "text-slate-400")} />
+                    <item.icon className={cn("h-4 w-4", isActive ? "text-primary" : "text-muted-foreground")} />
                     <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
                   </Link>
                 </SidebarMenuButton>
@@ -107,26 +111,26 @@ export function AppSidebar() {
           })}
         </SidebarMenu>
 
-        <SidebarSeparator className="my-4 bg-slate-200/60" />
+        <SidebarSeparator className="my-4 bg-sidebar-border" />
 
         {/* System / Settings Group */}
         <SidebarMenu>
-          <div className="px-2 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider group-data-[collapsible=icon]:hidden">
+          <div className="px-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsible=icon]:hidden">
             System
           </div>
           <SidebarMenuItem>
-            <SidebarMenuButton 
-              asChild 
-              tooltip="Settings" 
+            <SidebarMenuButton
+              asChild
+              tooltip="Settings"
               className={cn(
                 "h-10 transition-all duration-200",
-                location.pathname === '/settings' 
-                  ? "bg-white text-blue-700 shadow-sm border border-slate-200 font-medium" 
-                  : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/80"
+                location.pathname === '/settings'
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm border border-sidebar-border font-medium"
+                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
               )}
             >
               <Link to="/settings">
-                <Settings className="h-4 w-4 text-slate-400" />
+                <Settings className="h-4 w-4 text-muted-foreground" />
                 <span className="group-data-[collapsible=icon]:hidden">Settings</span>
               </Link>
             </SidebarMenuButton>
@@ -135,19 +139,31 @@ export function AppSidebar() {
       </SidebarContent>
 
       {/* 3. FOOTER: User & Logout */}
-      <SidebarFooter className="border-t border-slate-200/60 bg-white/50 p-2">
+      <SidebarFooter className="border-t border-sidebar-border bg-sidebar p-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-sidebar-accent mb-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+        >
+          {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+          <span className="ml-2 group-data-[collapsible=icon]:hidden">
+            {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+          </span>
+        </Button>
+
         {!user ? null : (
           <div className="flex flex-col gap-2">
             {/* User Info (Hidden when collapsed) */}
             <div className="hidden group-data-[collapsible=icon]:hidden px-2 py-1.5">
-              <p className="text-sm font-medium text-slate-900 truncate">{user.name}</p>
-              <p className="text-xs text-slate-500 capitalize">{user.role}</p>
+              <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
+              <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
             </div>
-            
-            <Button 
-              variant="ghost" 
+
+            <Button
+              variant="ghost"
               size="sm"
-              className="w-full justify-start text-slate-500 hover:text-red-600 hover:bg-red-50 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+              className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
               onClick={logout}
             >
               <LogOut className="h-4 w-4" />
@@ -156,7 +172,7 @@ export function AppSidebar() {
           </div>
         )}
       </SidebarFooter>
-      
+
       <SidebarRail />
     </Sidebar>
   );
