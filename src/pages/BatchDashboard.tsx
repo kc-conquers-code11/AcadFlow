@@ -41,6 +41,12 @@ import {
 
 // Reuse Modal for Create/Edit
 import { BatchTaskModal, BatchTaskFormValues } from '@/components/teacher/BatchTaskModal';
+<<<<<<< HEAD
+=======
+import { CopyToBatchModal } from '@/components/teacher/CopyToBatchModal';
+import type { BatchTaskRow } from '@/components/teacher/BatchPracticalsTable';
+import type { BatchAssignment, BatchPractical } from '@/types/database';
+>>>>>>> c291dc7e96c6770cf6af9b90c71d91d6a370e112
 import {
   AlertDialog,
   AlertDialogAction,
@@ -96,6 +102,12 @@ export default function BatchDashboard() {
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<BatchTaskRow | null>(null);
+<<<<<<< HEAD
+=======
+  const [deleteTarget, setDeleteTarget] = useState<{ row: BatchTaskRow; type: 'practical' | 'assignment' } | null>(null);
+  const [copyTarget, setCopyTarget] = useState<{ row: BatchTaskRow; type: 'practical' | 'assignment' } | null>(null);
+  const [copying, setCopying] = useState(false);
+>>>>>>> c291dc7e96c6770cf6af9b90c71d91d6a370e112
 
   // Delete Dialog State
   const [deleteTarget, setDeleteTarget] = useState<BatchTaskRow | null>(null);
@@ -147,8 +159,111 @@ export default function BatchDashboard() {
     [editingRow, activeTab]
   );
 
+<<<<<<< HEAD
   // Data for current view
   const currentData = activeTab === 'practicals' ? practicals : assignments;
+=======
+  const handleDeletePractical = useCallback((row: BatchTaskRow) => {
+    setDeleteTarget({ row, type: 'practical' });
+  }, []);
+  const handleDeleteAssignment = useCallback((row: BatchTaskRow) => {
+    setDeleteTarget({ row, type: 'assignment' });
+  }, []);
+
+  const handleCopyPractical = useCallback((row: BatchTaskRow) => {
+    setCopyTarget({ row, type: 'practical' });
+  }, []);
+  const handleCopyAssignment = useCallback((row: BatchTaskRow) => {
+    setCopyTarget({ row, type: 'assignment' });
+  }, []);
+
+  const handleCopyConfirm = useCallback(
+    async (targetDivision: 'A' | 'B', targetBatch: 'A' | 'B' | 'C') => {
+      if (!copyTarget || !user?.id) return;
+      setCopying(true);
+      try {
+        const { row } = copyTarget;
+        const deadlineISO = row.deadline || new Date().toISOString();
+        if (copyTarget.type === 'practical') {
+          const { error } = await supabase.from('batch_practicals').insert({
+            title: row.title,
+            description: row.description || null,
+            deadline: deadlineISO,
+            division: targetDivision,
+            batch: targetBatch,
+            practical_mode: row.practicalMode ?? 'code',
+            created_by: user.id,
+          });
+          if (error) throw error;
+        } else {
+          const quiz_questions = (row.quizQuestions ?? []).map((q) => ({
+            question: q.question,
+            options: q.options ?? [],
+            correct_index: q.correctIndex ?? 0,
+          }));
+          const { error } = await supabase.from('batch_assignments').insert({
+            title: row.title,
+            description: row.description || null,
+            deadline: deadlineISO,
+            division: targetDivision,
+            batch: targetBatch,
+            quiz_questions,
+            created_by: user.id,
+          });
+          if (error) throw error;
+        }
+        toast.success(`Copied to Div ${targetDivision} Batch ${targetBatch}`);
+        setCopyTarget(null);
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to copy');
+      } finally {
+        setCopying(false);
+      }
+    },
+    [copyTarget, user?.id]
+  );
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const table = deleteTarget.type === 'practical' ? 'batch_practicals' : 'batch_assignments';
+      const { error } = await supabase.from(table).delete().eq('id', deleteTarget.row.id);
+      if (error) throw error;
+      if (deleteTarget.type === 'practical') {
+        setPracticals((prev) => prev.filter((p) => p.id !== deleteTarget.row.id));
+      } else {
+        setAssignments((prev) => prev.filter((a) => a.id !== deleteTarget.row.id));
+      }
+      setDeleteTarget(null);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete');
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleteTarget]);
+
+  const modalInitialValues: BatchTaskFormValues | null = editingRow
+    ? {
+        title: editingRow.title,
+        description: editingRow.description,
+        deadline: editingRow.deadline ? toLocalDateTimeInput(editingRow.deadline) : '',
+        type: modalType,
+        practicalMode: editingRow.practicalMode ?? 'code',
+        quizQuestions: editingRow.quizQuestions ?? [],
+      }
+    : null;
+
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+      </div>
+    );
+  }
+>>>>>>> c291dc7e96c6770cf6af9b90c71d91d6a370e112
 
   return (
     <div className="flex flex-col gap-6 p-6 min-h-[calc(100vh-4rem)]">
@@ -207,6 +322,7 @@ export default function BatchDashboard() {
           </TabsTrigger>
         </TabsList>
 
+<<<<<<< HEAD
         <div className="border rounded-lg bg-card text-card-foreground shadow-sm overflow-hidden">
           <Table>
             <TableHeader>
@@ -289,6 +405,38 @@ export default function BatchDashboard() {
       </Tabs>
 
       {/* Modals */}
+=======
+      <BatchPracticalsTable
+        division={division}
+        batch={batch}
+        items={practicals}
+        onAdd={openAddPractical}
+        onEdit={openEditPractical}
+        onCopy={handleCopyPractical}
+        onDelete={handleDeletePractical}
+      />
+
+      <BatchAssignmentsTable
+        division={division}
+        batch={batch}
+        items={assignments}
+        onAdd={openAddAssignment}
+        onEdit={openEditAssignment}
+        onCopy={handleCopyAssignment}
+        onDelete={handleDeleteAssignment}
+      />
+
+      <CopyToBatchModal
+        open={!!copyTarget}
+        onOpenChange={(open) => !open && setCopyTarget(null)}
+        taskTitle={copyTarget?.row.title ?? ''}
+        currentDivision={divNorm ?? null}
+        currentBatch={batchNorm ?? null}
+        onConfirm={handleCopyConfirm}
+        copying={copying}
+      />
+
+>>>>>>> c291dc7e96c6770cf6af9b90c71d91d6a370e112
       <BatchTaskModal
         open={modalOpen}
         onOpenChange={setModalOpen}
