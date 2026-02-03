@@ -87,7 +87,7 @@ const addStaffs = async (staffArray: IStaff[]) => {
     const results = []
 
     for (const staff of staffArray) {
-        const { email, name, division, batch } = staff
+        const { email, name, division, batch, subjectIds } = staff
 
         try {
             const { data: existingUser, error: checkError } = await supabase
@@ -135,6 +135,17 @@ const addStaffs = async (staffArray: IStaff[]) => {
 
             if (profileError) throw profileError
 
+            const { error: teacherError } = await supabase
+                .from("teachers")
+                .insert({
+                    id: user.id,
+                    email,
+                    name,
+                    subjectIds,
+                })
+
+            if (teacherError) throw teacherError
+
             results.push({
                 email,
                 success: true,
@@ -163,7 +174,75 @@ const addStaffs = async (staffArray: IStaff[]) => {
 }
 
 
-const deleteStaff = async ({ id }) => { }
+const deleteStaff = async ({ id }) => {
+    try {
+        const { data: profiles, error: profileError } = await supabase.from("profiles").delete().eq("id", id)
+        if (profileError) {
+
+            throw profileError
+        }
+    } catch (error) {
+
+    }
+}
+
+
+const editStaff = async ({ id }) => {
+
+}
+
+
+const getStaffs = async () => {
+    try {
+        const { data: teachers, error: teacherError } = await supabase
+            .from("teachers")
+            .select(`
+        userid,
+        subject_ids,
+        profiles (
+          name,
+          email
+        )
+      `);
+
+        if (teacherError) throw teacherError;
+
+        const { data: subjects, error: subjectError } = await supabase
+            .from("subjects")
+            .select("subject_id, name");
+
+        if (subjectError) throw subjectError;
+
+        const staffs = teachers.map((teacher: any) => {
+            const teacherSubjects =
+                teacher.subject_ids?.map((sid: string) =>
+                    subjects.find(sub => sub.subject_id === sid)
+                ).filter(Boolean) || [];
+
+            return {
+                name: teacher.profiles?.name ?? null,
+                email: teacher.profiles?.email ?? null,
+                subjects: teacherSubjects.map(sub => ({
+                    name: sub!.name
+                }))
+            };
+        });
+
+        return {
+            success: true,
+            data: staffs
+        };
+
+    } catch (error: any) {
+        console.error("supabase:admin:getStaffs:", error);
+
+        return {
+            success: false,
+            message: error.message || "Failed to fetch staffs"
+        };
+    }
+};
+
 
 // Student
 
@@ -177,3 +256,5 @@ const bulkMappint = async () => { }
 
 const mapping = async () => { }
 
+
+export { addStaff, addStaffs, deleteStaff, editStaff, getStaffs }

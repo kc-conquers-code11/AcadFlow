@@ -3,4 +3,5 @@ export interface IStaff {
     name: string;
     division: string;
     batch: string;
+    subjectIds: string[];
 }
