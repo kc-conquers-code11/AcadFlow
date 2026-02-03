@@ -20,9 +20,9 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<{ error: any }>;
   signup: (
-    email: string, 
-    password: string, 
-    name: string, 
+    email: string,
+    password: string,
+    name: string,
     role: string,
     division?: string,
     batch?: string
@@ -74,12 +74,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Error fetching profile:', error);
-        setUser({ 
-          id: userId, 
-          email, 
-          name: 'New User', 
-          role: 'student' 
-        });
+        return;
+        // setUser({
+        //   id: userId,
+        //   email,
+        //   name: 'New User',
+        //   role: 'student'
+        // });
       } else {
         // Map DB snake_case to App camelCase
         setUser({
@@ -107,13 +108,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email,
       password,
     });
+    if (data.user) {
+      fetchProfile(data.user.id, data.user.email!)
+      window.location.href = '/dashboard';
+
+    };
     return { error };
   };
 
   const signup = async (
-    email: string, 
-    password: string, 
-    name: string, 
+    email: string,
+    password: string,
+    name: string,
     role: string,
     division?: string,
     batch?: string
@@ -125,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       options: {
         data: {
           name,
-          role, 
+          role,
           department: 'Computer Engineering',
           division,
           batch
