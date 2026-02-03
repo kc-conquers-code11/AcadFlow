@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Pencil, ExternalLink, Trash2 } from 'lucide-react';
+import { Pencil, ExternalLink, Trash2, Copy } from 'lucide-react';
 import type { BatchTaskRow } from './BatchPracticalsTable';
 
 interface BatchAssignmentsTableProps {
@@ -17,6 +17,7 @@ interface BatchAssignmentsTableProps {
   items: BatchTaskRow[];
   onAdd: () => void;
   onEdit: (item: BatchTaskRow) => void;
+  onCopy?: (item: BatchTaskRow) => void;
   onDelete: (item: BatchTaskRow) => void;
 }
 
@@ -26,6 +27,7 @@ export function BatchAssignmentsTable({
   items,
   onAdd,
   onEdit,
+  onCopy,
   onDelete,
 }: BatchAssignmentsTableProps) {
   return (
@@ -87,6 +89,17 @@ export function BatchAssignmentsTable({
                           <ExternalLink className="h-4 w-4" />
                         </Link>
                       </Button>
+                      {onCopy && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-slate-600"
+                          onClick={() => onCopy(item)}
+                          title="Copy to another batch"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
