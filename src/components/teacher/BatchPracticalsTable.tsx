@@ -18,6 +18,9 @@ export interface BatchTaskRow {
   totalStudents: number;
   submittedPercent: number;
   deadline?: string;
+  /** For edit prefilling from DB */
+  quizQuestions?: { question: string; options: string[]; correctIndex: number }[];
+  practicalMode?: 'code' | 'no-code';
 }
 
 interface BatchPracticalsTableProps {

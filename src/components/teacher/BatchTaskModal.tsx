@@ -51,6 +51,7 @@ interface BatchTaskModalProps {
   initialValues?: BatchTaskFormValues | null;
   defaultType?: TaskType;
   onSave: (values: BatchTaskFormValues) => void;
+  saving?: boolean;
 }
 
 export function BatchTaskModal({
@@ -59,6 +60,7 @@ export function BatchTaskModal({
   initialValues,
   defaultType = 'assignment',
   onSave,
+  saving = false,
 }: BatchTaskModalProps) {
   const [form, setForm] = useState<BatchTaskFormValues>(
     initialValues || { ...emptyForm, type: defaultType }
@@ -219,10 +221,12 @@ export function BatchTaskModal({
           )}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit">Save</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
