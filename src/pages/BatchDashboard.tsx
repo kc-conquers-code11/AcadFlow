@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { BatchPracticalsTable } from '@/components/teacher/BatchPracticalsTable';
 import { BatchAssignmentsTable } from '@/components/teacher/BatchAssignmentsTable';
 import { BatchTaskModal, BatchTaskFormValues } from '@/components/teacher/BatchTaskModal';
+import { CopyToBatchModal } from '@/components/teacher/CopyToBatchModal';
 import type { BatchTaskRow } from '@/components/teacher/BatchPracticalsTable';
 import type { BatchAssignment, BatchPractical } from '@/types/database';
 import {
@@ -119,6 +120,8 @@ export default function BatchDashboard() {
   const [modalType, setModalType] = useState<'practical' | 'assignment'>('practical');
   const [editingRow, setEditingRow] = useState<BatchTaskRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ row: BatchTaskRow; type: 'practical' | 'assignment' } | null>(null);
+  const [copyTarget, setCopyTarget] = useState<{ row: BatchTaskRow; type: 'practical' | 'assignment' } | null>(null);
+  const [copying, setCopying] = useState(false);
 
   const divNorm = normalizeDivision(division ?? '');
   const batchNorm = normalizeBatch(batch ?? '');
@@ -301,6 +304,60 @@ export default function BatchDashboard() {
     setDeleteTarget({ row, type: 'assignment' });
   }, []);
 
+  const handleCopyPractical = useCallback((row: BatchTaskRow) => {
+    setCopyTarget({ row, type: 'practical' });
+  }, []);
+  const handleCopyAssignment = useCallback((row: BatchTaskRow) => {
+    setCopyTarget({ row, type: 'assignment' });
+  }, []);
+
+  const handleCopyConfirm = useCallback(
+    async (targetDivision: 'A' | 'B', targetBatch: 'A' | 'B' | 'C') => {
+      if (!copyTarget || !user?.id) return;
+      setCopying(true);
+      try {
+        const { row } = copyTarget;
+        const deadlineISO = row.deadline || new Date().toISOString();
+        if (copyTarget.type === 'practical') {
+          const { error } = await supabase.from('batch_practicals').insert({
+            title: row.title,
+            description: row.description || null,
+            deadline: deadlineISO,
+            division: targetDivision,
+            batch: targetBatch,
+            practical_mode: row.practicalMode ?? 'code',
+            created_by: user.id,
+          });
+          if (error) throw error;
+        } else {
+          const quiz_questions = (row.quizQuestions ?? []).map((q) => ({
+            question: q.question,
+            options: q.options ?? [],
+            correct_index: q.correctIndex ?? 0,
+          }));
+          const { error } = await supabase.from('batch_assignments').insert({
+            title: row.title,
+            description: row.description || null,
+            deadline: deadlineISO,
+            division: targetDivision,
+            batch: targetBatch,
+            quiz_questions,
+            created_by: user.id,
+          });
+          if (error) throw error;
+        }
+        toast.success(`Copied to Div ${targetDivision} Batch ${targetBatch}`);
+        setCopyTarget(null);
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to copy');
+      } finally {
+        setCopying(false);
+      }
+    },
+    [copyTarget, user?.id]
+  );
+
   const confirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -365,6 +422,7 @@ export default function BatchDashboard() {
         items={practicals}
         onAdd={openAddPractical}
         onEdit={openEditPractical}
+        onCopy={handleCopyPractical}
         onDelete={handleDeletePractical}
       />
 
@@ -374,7 +432,18 @@ export default function BatchDashboard() {
         items={assignments}
         onAdd={openAddAssignment}
         onEdit={openEditAssignment}
+        onCopy={handleCopyAssignment}
         onDelete={handleDeleteAssignment}
+      />
+
+      <CopyToBatchModal
+        open={!!copyTarget}
+        onOpenChange={(open) => !open && setCopyTarget(null)}
+        taskTitle={copyTarget?.row.title ?? ''}
+        currentDivision={divNorm ?? null}
+        currentBatch={batchNorm ?? null}
+        onConfirm={handleCopyConfirm}
+        copying={copying}
       />
 
       <BatchTaskModal
