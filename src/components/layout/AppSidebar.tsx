@@ -42,7 +42,7 @@ const settingsItem: NavItem = { title: 'Settings', url: '/settings', icon: Setti
 
 // 2. Role Specific Items
 const studentItems: NavItem[] = [
-  { title: 'Subjects', url: '/subjects', icon: BookOpen, roles: ['student'] },
+  // { title: 'Subjects', url: '/subjects', icon: BookOpen, roles: ['student'] },
   { title: 'Batches', url: '/batches', icon: Layers, roles: ['student'] }, // Added for Student
   { title: 'Assignments', url: '/assignments', icon: FileText, roles: ['student'] },
 ];
@@ -55,7 +55,7 @@ const teacherItems: NavItem[] = [
 ];
 
 const adminItems: NavItem[] = [
-  { title: 'Subjects', url: '/subjects', icon: BookOpen, roles: ['admin'] },
+  // { title: 'Subjects', url: '/subjects', icon: BookOpen, roles: ['admin'] },
   { title: 'Reports', url: '/reports', icon: BarChart3, roles: ['admin'] },
   { title: 'Users', url: '/users', icon: Users, roles: ['admin'] },
 ];
