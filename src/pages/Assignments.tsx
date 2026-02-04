@@ -124,7 +124,7 @@ const AssignmentCard = ({ assignment, user, submission }: { assignment: any, use
         
         <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 rounded-full transition-all" asChild>
           {/* Link Logic: Student -> Editor | Teacher -> Submission List */}
-          <Link to={user.role === 'student' ? `/editor/${assignment.id}` : `/dashboard/submissions`}>
+          <Link to={`/editor/${assignment.id}`}>  {/*    Sahi Link */}
             <ChevronRight size={18} />
           </Link>
         </Button>

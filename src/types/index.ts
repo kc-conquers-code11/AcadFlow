@@ -1,5 +1,5 @@
 // User roles
-export type UserRole = 'student' | 'teacher' | 'admin';
+export type UserRole = 'student' | 'teacher' | 'admin' | 'hod';
 
 // User profile
 export interface User {
