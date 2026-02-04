@@ -11,57 +11,55 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Plus, Trash2, Edit2, X, Check } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Calendar as CalendarIcon, Plus, Trash2, LayoutList, Loader2, Link as LinkIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from "@/components/ui/card";
 
-export type TaskType = 'assignment' | 'practical';
-export type PracticalMode = 'code' | 'no-code';
+export type PracticalMode = 'code' | 'no-code' | 'both';
 
-export interface QuizQuestion {
-  question: string;
-  options: string[];
-  correctIndex: number;
+export interface RubricItem {
+  id: string;
+  criteria: string;
+  max_marks: number;
 }
 
 export interface BatchTaskFormValues {
+  experimentNumber: string;
   title: string;
   description: string;
+  notes: string;
+  resourceLink: string;
   deadline: string;
-  type: TaskType;
-  practicalMode?: PracticalMode;
-  quizQuestions?: QuizQuestion[];
+  practicalMode: PracticalMode;
+  rubrics: RubricItem[];
+  totalPoints: number;
 }
 
 const emptyForm: BatchTaskFormValues = {
+  experimentNumber: '',
   title: '',
   description: '',
+  notes: '',
+  resourceLink: '',
   deadline: '',
-  type: 'assignment', // Default, will be overwritten
   practicalMode: 'code',
-  quizQuestions: [],
+  rubrics: [],
+  totalPoints: 0,
 };
 
 interface BatchTaskModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialValues?: BatchTaskFormValues | null;
-  defaultType?: TaskType;
   onSave: (values: BatchTaskFormValues) => void;
   saving?: boolean;
 }
@@ -70,65 +68,56 @@ export function BatchTaskModal({
   open,
   onOpenChange,
   initialValues,
-  defaultType = 'assignment',
   onSave,
   saving = false,
 }: BatchTaskModalProps) {
-  const [form, setForm] = useState<BatchTaskFormValues>(
-    initialValues || { ...emptyForm, type: defaultType }
-  );
-
+  
+  const [form, setForm] = useState<BatchTaskFormValues>(emptyForm);
   const [date, setDate] = useState<Date | undefined>(undefined);
+  const [manualTotal, setManualTotal] = useState<number>(20);
 
-  // Quiz Editor State
-  const [isEditingQuiz, setIsEditingQuiz] = useState(false);
-  const [editingQuestionIndex, setEditingQuestionIndex] = useState<number>(-1);
-  const [tempQuestion, setTempQuestion] = useState<QuizQuestion>({
-    question: '',
-    options: ['', '', '', ''],
-    correctIndex: 0,
-  });
-
+  // Load Initial Values
   useEffect(() => {
     if (open) {
       if (initialValues) {
         setForm(initialValues);
-        // Date handling
         if (initialValues.deadline) {
           const d = new Date(initialValues.deadline);
           setDate(!isNaN(d.getTime()) ? d : undefined);
-        } else {
-          setDate(undefined);
+        }
+        const rubricSum = (initialValues.rubrics || []).reduce((sum, r) => sum + r.max_marks, 0);
+        if (rubricSum === 0 && initialValues.totalPoints > 0) {
+          setManualTotal(initialValues.totalPoints);
         }
       } else {
-        // New Task: Force type to defaultType
-        setForm({ ...emptyForm, type: defaultType, practicalMode: 'code' });
+        setForm({
+          ...emptyForm,
+          rubrics: [
+            { id: crypto.randomUUID(), criteria: 'Logic & Implementation', max_marks: 10 },
+            { id: crypto.randomUUID(), criteria: 'Output & Correctness', max_marks: 5 },
+            { id: crypto.randomUUID(), criteria: 'Documentation / Comments', max_marks: 5 },
+          ]
+        });
         setDate(undefined);
+        setManualTotal(20);
       }
-      setIsEditingQuiz(false);
-      setEditingQuestionIndex(-1);
     }
-  }, [open, initialValues, defaultType]);
+  }, [open, initialValues]);
 
-  // Sync date to form
+  // Sync Deadline String
   useEffect(() => {
     if (date) {
-      const y = date.getFullYear();
-      const mo = String(date.getMonth() + 1).padStart(2, '0');
-      const d = String(date.getDate()).padStart(2, '0');
-      const h = String(date.getHours()).padStart(2, '0');
-      const m = String(date.getMinutes()).padStart(2, '0');
-      setForm(prev => ({ ...prev, deadline: `${y}-${mo}-${d}T${h}:${m}` }));
-    } else {
-      // if date is cleared, clear the deadline in form if needed, or keep it optional? 
-      // Current logic mimics previous behavior: update if date exists.
+      setForm(prev => ({ ...prev, deadline: date.toISOString() }));
     }
   }, [date]);
 
+  const rubricTotal = form.rubrics.reduce((sum, r) => sum + (Number(r.max_marks) || 0), 0);
+  const finalTotal = form.rubrics.length > 0 ? rubricTotal : manualTotal;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(form);
-    onOpenChange(false);
+    if (!date) return;
+    onSave({ ...form, totalPoints: finalTotal });
   };
 
   const setTime = (type: 'hours' | 'minutes', value: number) => {
@@ -138,338 +127,190 @@ export function BatchTaskModal({
     setDate(newDate);
   };
 
-  // --- Quiz Logic ---
-  const handleAddQuestion = () => {
-    setTempQuestion({
-      question: '',
-      options: ['', '', '', ''],
-      correctIndex: 0,
-    });
-    setEditingQuestionIndex(-1);
-    setIsEditingQuiz(true);
-  };
-
-  const handleEditQuestion = (index: number) => {
-    const q = form.quizQuestions?.[index];
-    if (q) {
-      setTempQuestion({ ...q });
-      setEditingQuestionIndex(index);
-      setIsEditingQuiz(true);
-    }
-  };
-
-  const handleDeleteQuestion = (index: number) => {
+  const addRubricRow = () => {
     setForm(prev => ({
       ...prev,
-      quizQuestions: prev.quizQuestions?.filter((_, i) => i !== index),
+      rubrics: [...prev.rubrics, { id: crypto.randomUUID(), criteria: '', max_marks: 5 }]
     }));
   };
 
-  const handleSaveQuestion = () => {
-    // Validate
-    if (!tempQuestion.question.trim()) return;
-    const validOptions = tempQuestion.options.filter(o => o.trim());
-    if (validOptions.length < 2) return;
-
-    setForm(prev => {
-      const newQuestions = [...(prev.quizQuestions || [])];
-      if (editingQuestionIndex >= 0) {
-        newQuestions[editingQuestionIndex] = tempQuestion;
-      } else {
-        newQuestions.push(tempQuestion);
-      }
-      return { ...prev, quizQuestions: newQuestions };
-    });
-    setIsEditingQuiz(false);
+  const removeRubricRow = (id: string) => {
+    setForm(prev => ({ ...prev, rubrics: prev.rubrics.filter(r => r.id !== id) }));
   };
 
-  const updateTempOption = (idx: number, val: string) => {
-    const newOpts = [...tempQuestion.options];
-    newOpts[idx] = val;
-    setTempQuestion(prev => ({ ...prev, options: newOpts }));
-  };
-
-  const addOption = () => {
-    setTempQuestion(prev => ({ ...prev, options: [...prev.options, ''] }));
-  };
-
-  const removeOption = (idx: number) => {
-    if (tempQuestion.options.length <= 2) return;
-    const newOpts = tempQuestion.options.filter((_, i) => i !== idx);
-    // Adjust correct index if needed
-    let newCorrect = tempQuestion.correctIndex;
-    if (idx < newCorrect) newCorrect--;
-    else if (idx === newCorrect) newCorrect = 0;
-
-    setTempQuestion(prev => ({
+  const updateRubric = (id: string, field: keyof RubricItem, value: any) => {
+    setForm(prev => ({
       ...prev,
-      options: newOpts,
-      correctIndex: Math.min(newCorrect, newOpts.length - 1)
+      rubrics: prev.rubrics.map(r => r.id === id ? { ...r, [field]: value } : r)
     }));
   };
-
-  if (isEditingQuiz) {
-    return (
-      <Dialog open={open} onOpenChange={(v) => !v && setIsEditingQuiz(false)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editingQuestionIndex >= 0 ? 'Edit Question' : 'Add Question'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Question Text</Label>
-              <Textarea
-                value={tempQuestion.question}
-                onChange={e => setTempQuestion(p => ({ ...p, question: e.target.value }))}
-                placeholder="Enter your question here..."
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Options</Label>
-              <div className="space-y-2">
-                {tempQuestion.options.map((opt, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <div className="grid place-items-center">
-                      <input
-                        type="radio"
-                        name="correct-opt"
-                        className="h-4 w-4 accent-primary"
-                        checked={tempQuestion.correctIndex === i}
-                        onChange={() => setTempQuestion(p => ({ ...p, correctIndex: i }))}
-                      />
-                    </div>
-                    <Input
-                      value={opt}
-                      onChange={e => updateTempOption(i, e.target.value)}
-                      placeholder={`Option ${i + 1}`}
-                      className={cn(tempQuestion.correctIndex === i && "border-primary ring-1 ring-primary")}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-red-500"
-                      onClick={() => removeOption(i)}
-                      disabled={tempQuestion.options.length <= 2}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              <Button type="button" variant="outline" size="sm" onClick={addOption} className="mt-2 w-full">
-                <Plus className="h-3 w-3 mr-2" /> Add Option
-              </Button>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditingQuiz(false)}>Cancel</Button>
-            <Button onClick={handleSaveQuestion}>Save Question</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-hide">
         <DialogHeader>
-          <DialogTitle>
-            {initialValues ? 'Edit' : 'Add'} {form.type === 'assignment' ? 'Assignment' : 'Practical'}
-          </DialogTitle>
-          <DialogDescription>
-            Fill in the details below. {form.type === 'assignment' && "Add questions to create a quiz."}
-          </DialogDescription>
+          <DialogTitle>{initialValues ? 'Edit Practical' : 'Create New Practical'}</DialogTitle>
+          <DialogDescription>Set experiment details, grading criteria, and submission rules.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                value={form.title}
-                onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                placeholder="Task title"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description (Optional)</Label>
-              <Textarea
-                id="description"
-                value={form.description}
-                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                placeholder="Instructions for students..."
-                rows={3}
-              />
+
+        <form onSubmit={handleSubmit} className="space-y-6 py-2">
+          
+          <div className="grid gap-4 p-1">
+            <div className="flex gap-4">
+               <div className="w-1/3 space-y-2">
+                  <Label htmlFor="expNo">Exp. No</Label>
+                  <Input
+                    id="expNo"
+                    value={form.experimentNumber}
+                    onChange={(e) => setForm((p) => ({ ...p, experimentNumber: e.target.value }))}
+                    placeholder="e.g. Exp-01"
+                    required
+                  />
+               </div>
+               <div className="w-2/3 space-y-2">
+                  <Label htmlFor="title">Title / Aim</Label>
+                  <Input
+                    id="title"
+                    value={form.title}
+                    onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                    placeholder="e.g. Implement Stack using Array"
+                    required
+                  />
+               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Deadline</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP p") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 flex" align="start" side="bottom">
-                  <div className="border-r border-border">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={(d) => {
-                        if (d) {
-                          const newDate = new Date(d);
-                          if (date) {
-                            newDate.setHours(date.getHours());
-                            newDate.setMinutes(date.getMinutes());
-                          }
-                          setDate(newDate);
-                        }
-                      }}
-                      defaultMonth={date || new Date()}
-                      fixedWeeks
-                      initialFocus
-                      classNames={{
-                        month: "space-y-4 mx-0",
-                        table: "w-full border-collapse space-y-1 mx-0",
-                        head_row: "flex w-full",
-                        row: "flex w-full mt-2",
-                      }}
-                    />
-                  </div>
-                  <div className="flex flex-col sm:flex-row p-2 divide-y sm:divide-y-0 sm:divide-x divide-border">
-                    <ScrollArea className="w-16 h-[300px]">
-                      <div className="flex flex-col p-2 gap-1 items-center">
-                        <div className="text-xs font-medium mb-2 text-muted-foreground">Hours</div>
-                        {Array.from({ length: 24 }, (_, i) => (
-                          <Button
-                            key={i}
-                            size="icon"
-                            variant={date && date.getHours() === i ? "default" : "ghost"}
-                            className="h-8 w-8 shrink-0 text-sm"
-                            onClick={() => setTime('hours', i)}
-                            type="button"
-                          >
-                            {i.toString().padStart(2, '0')}
-                          </Button>
-                        ))}
-                      </div>
-                      <ScrollBar orientation="vertical" className="w-0" />
-                    </ScrollArea>
-                    <ScrollArea className="w-16 h-[300px]">
-                      <div className="flex flex-col p-2 gap-1 items-center">
-                        <div className="text-xs font-medium mb-2 text-muted-foreground">Mins</div>
-                        {Array.from({ length: 60 }, (_, i) => (
-                          <Button
-                            key={i}
-                            size="icon"
-                            variant={date && date.getMinutes() === i ? "default" : "ghost"}
-                            className="h-8 w-8 shrink-0 text-sm"
-                            onClick={() => setTime('minutes', i)}
-                            type="button"
-                          >
-                            {i.toString().padStart(2, '0')}
-                          </Button>
-                        ))}
-                      </div>
-                      <ScrollBar orientation="vertical" className="w-0" />
-                    </ScrollArea>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Practical Specifics */}
-            {form.type === 'practical' && (
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Practical mode</Label>
-                <RadioGroup
-                  value={form.practicalMode || 'code'}
-                  onValueChange={(v: PracticalMode) =>
-                    setForm((p) => ({ ...p, practicalMode: v }))
-                  }
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="code" id="mode-code" />
-                    <Label htmlFor="mode-code">Code-based</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="no-code" id="mode-no-code" />
-                    <Label htmlFor="mode-no-code">No-code</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-            )}
-
-            {/* Assignment Specifics (Quiz Builder) */}
-            {form.type === 'assignment' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-base">Quiz Questions</Label>
-                  <Button type="button" size="sm" variant="outline" onClick={handleAddQuestion}>
-                    <Plus className="h-4 w-4 mr-2" /> Add Question
-                  </Button>
+                <Label>Submission Mode</Label>
+                <div className="flex flex-col gap-2 p-3 border rounded-md bg-slate-50/50">
+                   <div className="flex items-center space-x-2">
+                      <input type="radio" id="mode-code" name="mode" checked={form.practicalMode === 'code'} onChange={() => setForm(p => ({...p, practicalMode: 'code'}))} className="accent-primary h-4 w-4 cursor-pointer"/>
+                      <Label htmlFor="mode-code" className="font-normal cursor-pointer">Code Compiler Only</Label>
+                   </div>
+                   <div className="flex items-center space-x-2">
+                      <input type="radio" id="mode-nocode" name="mode" checked={form.practicalMode === 'no-code'} onChange={() => setForm(p => ({...p, practicalMode: 'no-code'}))} className="accent-primary h-4 w-4 cursor-pointer"/>
+                      <Label htmlFor="mode-nocode" className="font-normal cursor-pointer">Text / File Only</Label>
+                   </div>
+                   <div className="flex items-center space-x-2">
+                      <input type="radio" id="mode-both" name="mode" checked={form.practicalMode === 'both'} onChange={() => setForm(p => ({...p, practicalMode: 'both'}))} className="accent-primary h-4 w-4 cursor-pointer"/>
+                      <Label htmlFor="mode-both" className="font-normal cursor-pointer">Both (Code + Text)</Label>
+                   </div>
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  {!form.quizQuestions?.length ? (
-                    <div className="text-center py-6 border border-dashed rounded-md text-muted-foreground text-sm">
-                      No questions added yet.
+              <div className="space-y-2">
+                <Label>Deadline</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {date ? format(date, "PPP p") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 flex" align="start">
+                    <div className="border-r border-border">
+                      <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(new Date(d))} defaultMonth={date || new Date()} initialFocus />
                     </div>
-                  ) : (
-                    form.quizQuestions.map((q, i) => (
-                      <Card key={i} className="group relative overflow-hidden transition-all hover:shadow-sm">
-                        <CardContent className="p-4 flex items-start gap-3">
-                          <div className="bg-muted w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium shrink-0 mt-0.5">
-                            {i + 1}
-                          </div>
-                          <div className="flex-1 space-y-1">
-                            <p className="font-medium text-sm line-clamp-2">{q.question}</p>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <Badge variant="secondary" className="text-[10px] px-1.5 h-5 font-normal">
-                                {q.options.length} Options
-                              </Badge>
-                              <span>•</span>
-                              <span className="text-green-600 dark:text-green-400 font-medium">
-                                Ans: {q.options[q.correctIndex]}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEditQuestion(i)} type="button">
-                              <Edit2 className="h-3.5 w-3.5" />
+                    <div className="flex flex-col sm:flex-row p-2 divide-x divide-border">
+                      <ScrollArea className="w-16 h-[300px]">
+                        <div className="flex flex-col p-2 gap-1 items-center">
+                          <div className="text-[10px] font-bold mb-2 text-muted-foreground uppercase">Hr</div>
+                          {Array.from({ length: 24 }, (_, i) => (
+                            <Button key={i} size="icon" variant={date?.getHours() === i ? "default" : "ghost"} className="h-8 w-8 text-sm" onClick={() => setTime('hours', i)} type="button">
+                              {i.toString().padStart(2, '0')}
                             </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteQuestion(i)} type="button">
-                              <Trash2 className="h-3.5 w-3.5" />
+                          ))}
+                        </div>
+                      </ScrollArea>
+                      <ScrollArea className="w-16 h-[300px]">
+                        <div className="flex flex-col p-2 gap-1 items-center">
+                          <div className="text-[10px] font-bold mb-2 text-muted-foreground uppercase">Min</div>
+                          {Array.from({ length: 12 }, (_, i) => i * 5).map((i) => (
+                            <Button key={i} size="icon" variant={date?.getMinutes() === i ? "default" : "ghost"} className="h-8 w-8 text-sm" onClick={() => setTime('minutes', i)} type="button">
+                              {i.toString().padStart(2, '0')}
                             </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
-            )}
+            </div>
 
+            <div className="grid grid-cols-2 gap-4">
+               <div className="space-y-2">
+                  <Label htmlFor="desc">Description / Instructions</Label>
+                  <Textarea id="desc" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} placeholder="Step-by-step instructions..." className="h-24 resize-none" />
+               </div>
+               <div className="space-y-2">
+                  <Label htmlFor="notes">Important Note (Optional)</Label>
+                  <Textarea id="notes" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="e.g. Plagiarism will lead to 0 marks." className="h-24 bg-yellow-50/30 border-yellow-100 resize-none" />
+               </div>
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="resource">Resource Link / File URL (Optional)</Label>
+                <div className="relative">
+                   <LinkIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                   <Input id="resource" className="pl-9" value={form.resourceLink} onChange={(e) => setForm((p) => ({ ...p, resourceLink: e.target.value }))} placeholder="https://drive.google.com/..." />
+                </div>
+            </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? 'Saving…' : 'Save Task'}
+          <div className="border-t pt-4">
+             <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <LayoutList size={18} className="text-primary" />
+                  <Label className="text-lg font-semibold">Grading Rubrics</Label>
+                </div>
+                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 text-sm px-3 py-1">
+                  Total Points: <span className="font-bold ml-1">{finalTotal}</span>
+                </Badge>
+             </div>
+
+             <Card className="bg-slate-50/50 border shadow-none">
+                <CardContent className="p-4 space-y-3">
+                  {form.rubrics.length > 0 ? (
+                    form.rubrics.map((item, index) => (
+                      <div key={item.id} className="flex gap-2 items-start group">
+                        <div className="flex-1 space-y-1">
+                          {index === 0 && <span className="text-[10px] font-bold text-muted-foreground uppercase pl-1">Criteria</span>}
+                          <Input value={item.criteria} onChange={(e) => updateRubric(item.id, 'criteria', e.target.value)} placeholder="e.g. Code Logic" className="bg-white" />
+                        </div>
+                        <div className="w-24 space-y-1">
+                          {index === 0 && <span className="text-[10px] font-bold text-muted-foreground uppercase pl-1">Marks</span>}
+                          <Input type="number" value={item.max_marks} onChange={(e) => updateRubric(item.id, 'max_marks', parseInt(e.target.value) || 0)} className="bg-white text-center font-medium" />
+                        </div>
+                        <div className="space-y-1 pt-0">
+                          {index === 0 && <span className="text-[10px] opacity-0 block">Del</span>}
+                          <Button type="button" variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-red-500 hover:bg-red-50" onClick={() => removeRubricRow(item.id)}>
+                            <Trash2 size={16} />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 border-dashed border-2 rounded-lg bg-white/50">
+                      <p className="text-sm text-muted-foreground mb-3">No rubrics defined. Using Manual Score.</p>
+                      <div className="flex items-center justify-center gap-2">
+                        <Label>Manual Score:</Label>
+                        <Input type="number" value={manualTotal} onChange={(e) => setManualTotal(parseInt(e.target.value) || 0)} className="w-24 bg-white text-center" />
+                      </div>
+                    </div>
+                  )}
+
+                  <Button type="button" variant="outline" size="sm" onClick={addRubricRow} className="mt-2 w-full border-dashed border-2 hover:bg-white hover:border-primary/50 hover:text-primary transition-all">
+                    <Plus size={14} className="mr-2" /> Add Criteria Row
+                  </Button>
+                </CardContent>
+             </Card>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+            <Button type="submit" disabled={saving || !form.title || !form.experimentNumber || !date} className="min-w-[140px]">
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (initialValues ? 'Update Practical' : 'Create Practical')}
             </Button>
           </DialogFooter>
         </form>

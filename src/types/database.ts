@@ -20,6 +20,13 @@ export interface Subject {
   has_code_editor: boolean;
 }
 
+// --- Rubric Type ---
+export interface RubricItem {
+  id: string;
+  criteria: string;
+  max_marks: number;
+}
+
 export interface Assignment {
   id: string;
   subject_id: string;
@@ -45,15 +52,21 @@ export interface Submission {
   marks: number | null;
   feedback: string | null;
   plagiarism_score: number;
+  rubric_scores: Record<string, number>; // { [criteria_id]: score }
 }
 
-// --- New Types for Dynamic Batches ---
+// --- Dynamic Batches ---
 
 export interface Batch {
   id: string;
   name: string;
   description: string | null;
   code: string;
+  year: number;
+  division: 'A' | 'B';
+  batch: 'A' | 'B' | 'C';
+  semester: number;
+  academic_year: string;
   created_by: string;
   created_at: string;
 }
@@ -63,4 +76,34 @@ export interface BatchStudent {
   batch_id: string;
   student_id: string;
   joined_at: string;
+}
+
+// --- Teacher Batch Tasks ---
+
+export interface BatchAssignment {
+  id: string;
+  title: string;
+  description: string | null;
+  deadline: string;
+  division: 'A' | 'B';
+  batch: 'A' | 'B' | 'C';
+  quiz_questions: { question: string; options: string[]; correct_index: number }[];
+  rubrics: RubricItem[];
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BatchPractical {
+  id: string;
+  title: string;
+  description: string | null;
+  deadline: string;
+  division: 'A' | 'B';
+  batch: 'A' | 'B' | 'C';
+  practical_mode: 'code' | 'no-code';
+  rubrics: RubricItem[];
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }

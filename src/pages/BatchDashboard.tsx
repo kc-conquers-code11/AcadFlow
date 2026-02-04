@@ -1,620 +1,247 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useCallback, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Loader2, Plus, BookOpen, FileText, Search } from 'lucide-react';
+import { Loader2, Plus, LayoutDashboard, BarChart3, Search } from 'lucide-react';
 import { BatchPracticalsTable } from '@/components/teacher/BatchPracticalsTable';
-import { BatchAssignmentsTable } from '@/components/teacher/BatchAssignmentsTable';
 import { BatchTaskModal, BatchTaskFormValues } from '@/components/teacher/BatchTaskModal';
-import { CopyToBatchModal } from '@/components/teacher/CopyToBatchModal';
-import type { BatchTaskRow } from '@/components/teacher/BatchPracticalsTable';
-import type { BatchAssignment, BatchPractical } from '@/types/database';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { EvaluationModal } from '@/components/teacher/EvaluationModal';
+import { SubmissionListModal } from '@/components/teacher/SubmissionListModal';
+import { BatchAnalytics } from '@/components/teacher/BatchAnalytics';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'sonner';
 
-/** Convert ISO deadline from DB to datetime-local input value (local time) */
-function toLocalDateTimeInput(iso: string): string {
-  const d = new Date(iso);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const h = String(d.getHours()).padStart(2, '0');
-  const min = String(d.getMinutes()).padStart(2, '0');
-  return `${y}-${m}-${day}T${h}:${min}`;
-}
-
-/** Convert datetime-local value to ISO for Supabase */
-function deadlineToISO(local: string): string {
-  return new Date(local).toISOString();
-}
-
-const MOCK_TOTAL_STUDENTS = 30;
-
-function mapPracticalToRow(row: BatchPractical): BatchTaskRow {
-  const total = MOCK_TOTAL_STUDENTS;
-  const submittedCount = 0;
-  const pct = total ? Math.round((submittedCount / total) * 100) : 0;
-  return {
-    id: row.id,
-    title: row.title,
-    description: row.description ?? '',
-    submittedCount,
-    totalStudents: total,
-    submittedPercent: pct,
-    deadline: row.deadline,
-    practicalMode: row.practical_mode,
-  };
-}
-
-function mapAssignmentToRow(row: BatchAssignment): BatchTaskRow {
-  const total = MOCK_TOTAL_STUDENTS;
-  const submittedCount = 0;
-  const pct = total ? Math.round((submittedCount / total) * 100) : 0;
-  const quizQuestions = (row.quiz_questions ?? []).map((q) => ({
-    question: q.question,
-    options: q.options ?? [],
-    correctIndex: q.correct_index ?? 0,
-  }));
-  return {
-    id: row.id,
-    title: row.title,
-    description: row.description ?? '',
-    submittedCount,
-    totalStudents: total,
-    submittedPercent: pct,
-    deadline: row.deadline,
-    quizQuestions,
-  };
-}
-
-function toRow(
-  form: BatchTaskFormValues,
-  id: string,
-  submittedCount = 0,
-  existingRow?: BatchTaskRow
-): BatchTaskRow {
-  const total = MOCK_TOTAL_STUDENTS;
-  const pct = total ? Math.round((submittedCount / total) * 100) : 0;
-  return {
-    id,
-    title: form.title,
-    description: form.description,
-    submittedCount,
-    totalStudents: total,
-    submittedPercent: pct,
-    deadline: form.deadline || existingRow?.deadline,
-    quizQuestions: form.quizQuestions,
-    practicalMode: form.practicalMode,
-  };
-}
-
-/** Normalize division/batch from URL to DB enum values */
-function normalizeDivision(division: string): 'A' | 'B' | null {
-  const d = division?.toUpperCase();
-  return d === 'A' || d === 'B' ? d : null;
-}
-function normalizeBatch(batch: string): 'A' | 'B' | 'C' | null {
-  const b = batch?.toUpperCase();
-  return b === 'A' || b === 'B' || b === 'C' ? b : null;
-}
-
 export default function BatchDashboard() {
-  const { division, batch } = useParams<{ division: string; batch: string }>();
+  const { batchId } = useParams<{ batchId: string }>();
   const { user } = useAuth();
-  const [practicals, setPracticals] = useState<BatchTaskRow[]>([]);
-  const [assignments, setAssignments] = useState<BatchTaskRow[]>([]);
+  const isTeacher = user?.role === 'teacher' || user?.role === 'hod';
+  
   const [loading, setLoading] = useState(true);
+  const [batchDetails, setBatchDetails] = useState<any>(null);
+  const [practicals, setPracticals] = useState<any[]>([]);
+  
+  // Modals & States
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalType, setModalType] = useState<'practical' | 'assignment'>('practical');
-  const [editingRow, setEditingRow] = useState<BatchTaskRow | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{ row: BatchTaskRow; type: 'practical' | 'assignment' } | null>(null);
-  const [copyTarget, setCopyTarget] = useState<{ row: BatchTaskRow; type: 'practical' | 'assignment' } | null>(null);
-  const [copying, setCopying] = useState(false);
-  const [activeTab, setActiveTab] = useState('practicals');
+  const [modalOpen, setModalOpen] = useState(false); 
+  
+  const [listModalOpen, setListModalOpen] = useState(false); 
+  const [selectedPractical, setSelectedPractical] = useState<any>(null);
+  
+  const [evalModalOpen, setEvalModalOpen] = useState(false); 
+  const [selectedPracIdForEval, setSelectedPracIdForEval] = useState<string | null>(null);
+  
+  const [editingRow, setEditingRow] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const [sortConfig, setSortConfig] = useState<{
-    key: 'submittedCount' | 'submittedPercent';
-    direction: 'asc' | 'desc';
-  } | null>(null);
-
-  const divNorm = normalizeDivision(division ?? '');
-  const batchNorm = normalizeBatch(batch ?? '');
-
   const fetchData = useCallback(async () => {
-    if (!user?.id || !divNorm || !batchNorm) {
-      setLoading(false);
-      return;
-    }
+    if (!batchId || !user) return;
     setLoading(true);
     try {
-      const [practicalsRes, assignmentsRes] = await Promise.all([
-        supabase
-          .from('batch_practicals')
-          .select('*')
-          .eq('division', divNorm)
-          .eq('batch', batchNorm)
-          .eq('created_by', user.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('batch_assignments')
-          .select('*')
-          .eq('division', divNorm)
-          .eq('batch', batchNorm)
-          .eq('created_by', user.id)
-          .order('created_at', { ascending: false }),
-      ]);
-      if (practicalsRes.error) throw practicalsRes.error;
-      if (assignmentsRes.error) throw assignmentsRes.error;
-      setPracticals((practicalsRes.data ?? []).map(mapPracticalToRow));
-      setAssignments((assignmentsRes.data ?? []).map(mapAssignmentToRow));
-    } catch (err) {
+      const { data: batch, error: bErr } = await supabase.from('batches').select('*').eq('id', batchId).single();
+      if (bErr) throw bErr;
+      setBatchDetails(batch);
+
+      const { data: pracs, error: pErr } = await supabase
+        .from('batch_practicals')
+        .select('*')
+        .eq('division', batch.division)
+        .eq('batch', batch.batch)
+        .order('created_at', { ascending: false });
+
+      if (pErr) throw pErr;
+
+      let submissionMap: Record<string, { status: string; marks: number | null }> = {}; 
+      if (!isTeacher && pracs.length > 0) {
+        const practicalIds = pracs.map(p => p.id);
+        const { data: subs } = await supabase
+          .from('submissions')
+          .select('practical_id, status, marks') 
+          .eq('student_id', user.id)
+          .in('practical_id', practicalIds);
+        
+        subs?.forEach(s => {
+          submissionMap[s.practical_id] = { status: s.status, marks: s.marks };
+        });
+      }
+
+      const mergedData = pracs.map(p => ({
+        id: p.id,
+        title: p.title,
+        experimentNumber: p.experiment_number,
+        description: p.description,
+        deadline: p.deadline,
+        practicalMode: p.practical_mode,
+        maxMarks: p.total_points,
+        rubrics: p.rubrics,
+        notes: p.notes,
+        resourceLink: p.resource_link,
+        studentStatus: submissionMap[p.id]?.status || null, 
+        studentMarks: submissionMap[p.id]?.marks ?? null,
+      }));
+
+      setPracticals(mergedData);
+
+    } catch (err: any) {
       console.error(err);
-      toast.error('Failed to load batch data');
+      toast.error('Failed to load dashboard');
     } finally {
       setLoading(false);
     }
-  }, [user?.id, divNorm, batchNorm]);
+  }, [batchId, user, isTeacher]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleSort = (key: 'submittedCount' | 'submittedPercent') => {
-    setSortConfig((current) => {
-      if (current?.key === key) {
-        if (current.direction === 'asc') return { key, direction: 'desc' };
-        return null; // Reset to default sort
-      }
-      return { key, direction: 'asc' };
-    });
+  const handleSave = async (values: BatchTaskFormValues) => {
+    if(!batchDetails) return;
+    setSaving(true);
+    try {
+      const payload = {
+        division: batchDetails.division,
+        batch: batchDetails.batch,
+        experiment_number: values.experimentNumber,
+        title: values.title,
+        description: values.description,
+        notes: values.notes,
+        resource_link: values.resourceLink,
+        deadline: values.deadline,
+        practical_mode: values.practicalMode,
+        rubrics: values.rubrics,
+        total_points: Number(values.totalPoints),
+        created_by: user?.id
+      };
+
+      const { error } = editingRow 
+        ? await supabase.from('batch_practicals').update(payload).eq('id', editingRow.id)
+        : await supabase.from('batch_practicals').insert([payload]);
+
+      if (error) throw error;
+      toast.success(editingRow ? 'Updated' : 'Created');
+      setModalOpen(false);
+      fetchData();
+    } catch (err) {
+      toast.error('Save failed');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const filteredPracticals = useMemo(() => {
-    let result = practicals;
-    if (searchQuery) {
-      const lower = searchQuery.toLowerCase();
-      result = result.filter(p =>
-        (p.title || '').toLowerCase().includes(lower) ||
-        (p.description || '').toLowerCase().includes(lower)
-      );
-    }
-    if (sortConfig) {
-      result = [...result].sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return result;
-  }, [practicals, searchQuery, sortConfig]);
-
-  const filteredAssignments = useMemo(() => {
-    let result = assignments;
-    if (searchQuery) {
-      const lower = searchQuery.toLowerCase();
-      result = result.filter(a =>
-        (a.title || '').toLowerCase().includes(lower) ||
-        (a.description || '').toLowerCase().includes(lower)
-      );
-    }
-    if (sortConfig) {
-      result = [...result].sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return result;
-  }, [assignments, searchQuery, sortConfig]);
-
-  if (!user) return null;
-  if (!division || !batch) {
-    return (
-      <div className="py-10 text-muted-foreground">
-        Missing division or batch. <Link to="/batches" className="text-primary underline">Back to Batches</Link>
-      </div>
-    );
-  }
-
-  const divisionLabel = `Div ${division.toUpperCase()}`;
-  const batchLabel = `Batch ${batch.toUpperCase()}`;
-
-  const openAddPractical = useCallback(() => {
-    setEditingRow(null);
-    setModalType('practical');
-    setModalOpen(true);
-  }, []);
-  const openAddAssignment = useCallback(() => {
-    setEditingRow(null);
-    setModalType('assignment');
-    setModalOpen(true);
-  }, []);
-
-  const handleAddClick = useCallback(() => {
-    if (activeTab === 'practicals') {
-      openAddPractical();
-    } else {
-      openAddAssignment();
-    }
-  }, [activeTab, openAddPractical, openAddAssignment]);
-
-  const openEditPractical = useCallback((row: BatchTaskRow) => {
-    setEditingRow(row);
-    setModalType('practical');
-    setModalOpen(true);
-  }, []);
-  const openEditAssignment = useCallback((row: BatchTaskRow) => {
-    setEditingRow(row);
-    setModalType('assignment');
-    setModalOpen(true);
-  }, []);
-
-  const handleSave = useCallback(
-    async (values: BatchTaskFormValues) => {
-      if (!user?.id || !divNorm || !batchNorm) return;
-      setSaving(true);
-      try {
-        const deadlineISO = values.deadline ? deadlineToISO(values.deadline) : '';
-        if (modalType === 'practical') {
-          if (editingRow) {
-            const { error } = await supabase
-              .from('batch_practicals')
-              .update({
-                title: values.title,
-                description: values.description || null,
-                deadline: deadlineISO,
-                practical_mode: values.practicalMode ?? 'code',
-              })
-              .eq('id', editingRow.id);
-            if (error) throw error;
-            setPracticals((prev) =>
-              prev.map((p) =>
-                p.id === editingRow.id
-                  ? toRow(values, p.id, p.submittedCount, p)
-                  : p
-              )
-            );
-          } else {
-            const { data, error } = await supabase
-              .from('batch_practicals')
-              .insert({
-                title: values.title,
-                description: values.description || null,
-                deadline: deadlineISO,
-                division: divNorm,
-                batch: batchNorm,
-                practical_mode: values.practicalMode ?? 'code',
-                created_by: user.id,
-              })
-              .select('id')
-              .single();
-            if (error) throw error;
-            const row = toRow(values, data.id, 0);
-            setPracticals((prev) => [...prev, row]);
-          }
-        } else {
-          const quiz_questions = (values.quizQuestions ?? []).map((q) => ({
-            question: q.question,
-            options: q.options ?? [],
-            correct_index: q.correctIndex ?? 0,
-          }));
-          if (editingRow) {
-            const { error } = await supabase
-              .from('batch_assignments')
-              .update({
-                title: values.title,
-                description: values.description || null,
-                deadline: deadlineISO,
-                quiz_questions,
-              })
-              .eq('id', editingRow.id);
-            if (error) throw error;
-            setAssignments((prev) =>
-              prev.map((a) =>
-                a.id === editingRow.id
-                  ? toRow(values, a.id, a.submittedCount, a)
-                  : a
-              )
-            );
-          } else {
-            const { data, error } = await supabase
-              .from('batch_assignments')
-              .insert({
-                title: values.title,
-                description: values.description || null,
-                deadline: deadlineISO,
-                division: divNorm,
-                batch: batchNorm,
-                quiz_questions,
-                created_by: user.id,
-              })
-              .select('id')
-              .single();
-            if (error) throw error;
-            const row = toRow(values, data.id, 0);
-            setAssignments((prev) => [...prev, row]);
-          }
-        }
-        setEditingRow(null);
-        setModalOpen(false);
-      } catch (err) {
-        console.error(err);
-        toast.error('Failed to save');
-      } finally {
-        setSaving(false);
-      }
-    },
-    [user?.id, divNorm, batchNorm, editingRow, modalType]
+  const filteredPracticals = practicals.filter(p => 
+    p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (p.experimentNumber || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleDeletePractical = useCallback((row: BatchTaskRow) => {
-    setDeleteTarget({ row, type: 'practical' });
-  }, []);
-  const handleDeleteAssignment = useCallback((row: BatchTaskRow) => {
-    setDeleteTarget({ row, type: 'assignment' });
-  }, []);
-
-  const handleCopyPractical = useCallback((row: BatchTaskRow) => {
-    setCopyTarget({ row, type: 'practical' });
-  }, []);
-  const handleCopyAssignment = useCallback((row: BatchTaskRow) => {
-    setCopyTarget({ row, type: 'assignment' });
-  }, []);
-
-  const handleCopyConfirm = useCallback(
-    async (targetDivision: 'A' | 'B', targetBatch: 'A' | 'B' | 'C') => {
-      if (!copyTarget || !user?.id) return;
-      setCopying(true);
-      try {
-        const { row } = copyTarget;
-        const deadlineISO = row.deadline || new Date().toISOString();
-        if (copyTarget.type === 'practical') {
-          const { error } = await supabase.from('batch_practicals').insert({
-            title: row.title,
-            description: row.description || null,
-            deadline: deadlineISO,
-            division: targetDivision,
-            batch: targetBatch,
-            practical_mode: row.practicalMode ?? 'code',
-            created_by: user.id,
-          });
-          if (error) throw error;
-        } else {
-          const quiz_questions = (row.quizQuestions ?? []).map((q) => ({
-            question: q.question,
-            options: q.options ?? [],
-            correct_index: q.correctIndex ?? 0,
-          }));
-          const { error } = await supabase.from('batch_assignments').insert({
-            title: row.title,
-            description: row.description || null,
-            deadline: deadlineISO,
-            division: targetDivision,
-            batch: targetBatch,
-            quiz_questions,
-            created_by: user.id,
-          });
-          if (error) throw error;
-        }
-        toast.success(`Copied to Div ${targetDivision} Batch ${targetBatch}`);
-        setCopyTarget(null);
-      } catch (err) {
-        console.error(err);
-        toast.error('Failed to copy');
-      } finally {
-        setCopying(false);
-      }
-    },
-    [copyTarget, user?.id]
-  );
-
-  const confirmDelete = useCallback(async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      const table = deleteTarget.type === 'practical' ? 'batch_practicals' : 'batch_assignments';
-      const { error } = await supabase.from(table).delete().eq('id', deleteTarget.row.id);
-      if (error) throw error;
-      if (deleteTarget.type === 'practical') {
-        setPracticals((prev) => prev.filter((p) => p.id !== deleteTarget.row.id));
-      } else {
-        setAssignments((prev) => prev.filter((a) => a.id !== deleteTarget.row.id));
-      }
-      setDeleteTarget(null);
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to delete');
-    } finally {
-      setDeleting(false);
-    }
-  }, [deleteTarget]);
-
-  const modalInitialValues: BatchTaskFormValues | null = editingRow
-    ? {
-      title: editingRow.title,
-      description: editingRow.description,
-      deadline: editingRow.deadline ? toLocalDateTimeInput(editingRow.deadline) : '',
-      type: modalType,
-      practicalMode: editingRow.practicalMode ?? 'code',
-      quizQuestions: editingRow.quizQuestions ?? [],
-    }
-    : null;
-
-  if (loading) {
-    return (
-      <div className="flex h-[50vh] w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  if (loading) return <div className="flex h-screen items-center justify-center bg-background text-foreground"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="flex flex-col gap-8 p-6 pb-10 min-h-[calc(100vh-4rem)] bg-background">
-      {/* Header Section */}
-      <div className="flex flex-col gap-4">
-        <Button variant="ghost" size="sm" className="w-fit text-muted-foreground hover:text-foreground -ml-2" asChild>
-          <Link to="/batches">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Batches
-          </Link>
-        </Button>
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              {divisionLabel} · {batchLabel}
-            </h1>
-            <p className="text-muted-foreground">Manage practicals and assignments for this batch.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative w-64 hidden sm:block">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                type="search"
-                placeholder="Search..."
-                className="pl-9 bg-background"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <Button onClick={handleAddClick} className="shadow-sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Add {activeTab === 'practicals' ? 'Practical' : 'Assignment'}
-            </Button>
+    <div className="p-6 space-y-6 max-w-7xl mx-auto min-h-screen bg-muted/40 transition-colors duration-200">
+      
+      {/* Header */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">{batchDetails?.name}</h1>
+          <div className="flex items-center gap-2 mt-2">
+             <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 text-xs px-2 py-0.5 rounded font-mono border border-blue-200 dark:border-blue-800">
+                Div {batchDetails?.division}
+             </span>
+             <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 text-xs px-2 py-0.5 rounded font-mono border border-indigo-200 dark:border-indigo-800">
+                Batch {batchDetails?.batch}
+             </span>
           </div>
         </div>
-        {/* Mobile Search */}
-        <div className="relative sm:hidden">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input
-            type="search"
-            placeholder="Search experiments..."
-            className="pl-9 bg-background"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+        
+        {isTeacher && (
+          <Button onClick={() => { setEditingRow(null); setModalOpen(true); }} className="shadow-sm">
+            <Plus className="mr-2 h-4 w-4" /> Create Practical
+          </Button>
+        )}
+      </header>
+
+      {/* Main Tabs */}
+      <Tabs defaultValue="experiments" className="space-y-6">
+         
+         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border pb-1">
+            <TabsList className="bg-transparent p-0 gap-2">
+               <TabsTrigger 
+                 value="experiments" 
+                 className="data-[state=active]:bg-background data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-border gap-2 px-4"
+               >
+                 <LayoutDashboard size={16}/> Experiments
+               </TabsTrigger>
+               {isTeacher && (
+                 <TabsTrigger 
+                   value="analytics" 
+                   className="data-[state=active]:bg-background data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-border gap-2 px-4"
+                 >
+                   <BarChart3 size={16}/> Analysis & Defaulters
+                 </TabsTrigger>
+               )}
+            </TabsList>
+         </div>
+
+         <TabsContent value="experiments" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+            
+            <div className="flex items-center gap-4 max-w-sm">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search experiments..." 
+                  className="pl-9 bg-background border-input" 
+                  value={searchQuery} 
+                  onChange={(e) => setSearchQuery(e.target.value)} 
+                />
+              </div>
+            </div>
+
+            <BatchPracticalsTable 
+              items={filteredPracticals}
+              userRole={user?.role || 'student'}
+              onEdit={(row) => { setEditingRow(row); setModalOpen(true); }}
+              onDelete={() => {}} 
+              onViewResponses={(row) => { 
+                setSelectedPractical(row); 
+                setListModalOpen(true); 
+              }}
+            />
+         </TabsContent>
+
+         {isTeacher && (
+           <TabsContent value="analytics">
+              <BatchAnalytics batchId={batchId!} totalPracticals={practicals.length} />
+           </TabsContent>
+         )}
+
+      </Tabs>
+
+      {/* Modals - Wrapped in fragments, they manage their own internal theme via Radix/Shadcn */}
+      {isTeacher && (
+        <>
+          <BatchTaskModal 
+            open={modalOpen} 
+            onOpenChange={setModalOpen} 
+            initialValues={editingRow} 
+            onSave={handleSave} 
+            saving={saving} 
           />
-        </div>
-      </div>
+          
+          <SubmissionListModal 
+             open={listModalOpen}
+             onOpenChange={setListModalOpen}
+             practical={selectedPractical}
+             onEvaluate={(pracId) => {
+               setSelectedPracIdForEval(pracId); 
+               setEvalModalOpen(true);
+             }}
+          />
 
-      {/* Main Content */}
-      <Card className="border-border/50 shadow-sm bg-card">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <CardHeader className="border-b px-6 py-4">
-            <div className="flex items-center justify-between">
-              <TabsList className="bg-muted">
-                <TabsTrigger value="practicals" className="gap-2">
-                  <BookOpen className="h-4 w-4" />
-                  Practicals
-                </TabsTrigger>
-                <TabsTrigger value="assignments" className="gap-2">
-                  <FileText className="h-4 w-4" />
-                  Assignments
-                </TabsTrigger>
-              </TabsList>
-            </div>
-          </CardHeader>
-
-          <CardContent className="p-0">
-            <TabsContent value="practicals" className="m-0 border-none outline-none">
-              <div className="p-6">
-                <BatchPracticalsTable
-                  division={division}
-                  batch={batch}
-                  items={filteredPracticals}
-                  onAdd={openAddPractical}
-                  onEdit={openEditPractical}
-                  onCopy={handleCopyPractical}
-                  onDelete={handleDeletePractical}
-                  hideHeader
-                  sortConfig={sortConfig}
-                  onSort={handleSort}
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="assignments" className="m-0 border-none outline-none">
-              <div className="p-6">
-                <BatchAssignmentsTable
-                  division={division}
-                  batch={batch}
-                  items={filteredAssignments}
-                  onAdd={openAddAssignment}
-                  onEdit={openEditAssignment}
-                  onCopy={handleCopyAssignment}
-                  onDelete={handleDeleteAssignment}
-                  hideHeader
-                  sortConfig={sortConfig}
-                  onSort={handleSort}
-                />
-              </div>
-            </TabsContent>
-          </CardContent>
-        </Tabs>
-      </Card>
-
-      <CopyToBatchModal
-        open={!!copyTarget}
-        onOpenChange={(open) => !open && setCopyTarget(null)}
-        taskTitle={copyTarget?.row.title ?? ''}
-        currentDivision={divNorm ?? null}
-        currentBatch={batchNorm ?? null}
-        onConfirm={handleCopyConfirm}
-        copying={copying}
-      />
-
-      <BatchTaskModal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        initialValues={modalInitialValues}
-        defaultType={modalType}
-        onSave={handleSave}
-        saving={saving}
-      />
-
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete task?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove &quot;{deleteTarget?.row.title}&quot;. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              disabled={deleting}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {deleting ? 'Deleting…' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <EvaluationModal 
+            open={evalModalOpen} 
+            onOpenChange={setEvalModalOpen} 
+            practicalId={selectedPractical?.id} 
+          />
+        </>
+      )}
     </div>
   );
 }
