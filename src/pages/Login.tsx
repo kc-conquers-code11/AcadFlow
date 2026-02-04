@@ -190,7 +190,7 @@ export default function Login() {
                   value={email}
                   onChange={(e: any) => setEmail(e.target.value)}
                   required
-                  placeholder="student@college.edu"
+                  placeholder="username@pvppcoe.ac.in"
                 />
               </div>
 
@@ -203,7 +203,7 @@ export default function Login() {
                     value={password}
                     onChange={(e: any) => setPassword(e.target.value)}
                     required
-                    placeholder="••••••••"
+                    placeholder="********"
                   />
                   <button
                     type="button"
