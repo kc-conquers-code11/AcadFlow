@@ -2,12 +2,11 @@ export interface Profile {
   id: string;
   email: string;
   name: string | null;
-  role: 'student' | 'teacher' | 'admin';
+  role: 'student' | 'teacher' | 'hod';
   department: string | null;
   enrollment_number: string | null;
   year: number | null;
   avatar_url: string | null;
-  // New Fields for Student Identification
   division: 'A' | 'B' | null;
   batch: 'A' | 'B' | 'C' | null;
 }
@@ -31,9 +30,8 @@ export interface Assignment {
   programming_language: string | null;
   max_marks: number;
   created_by: string;
-  // New Fields for Targeting
-  target_division: 'A' | 'B' | null; // If null, applies to all divisions
-  target_batch: 'A' | 'B' | 'C' | null; // If null, applies to whole class
+  target_division: 'A' | 'B' | null;
+  target_batch: 'A' | 'B' | 'C' | null;
 }
 
 export interface Submission {
@@ -49,31 +47,20 @@ export interface Submission {
   plagiarism_score: number;
 }
 
-/** Teacher batch flow: assignments per division/batch (separate from subject-based assignments) */
-export interface BatchAssignment {
+// --- New Types for Dynamic Batches ---
+
+export interface Batch {
   id: string;
-  title: string;
+  name: string;
   description: string | null;
-  deadline: string;
-  division: 'A' | 'B';
-  batch: 'A' | 'B' | 'C';
-  quiz_questions: { question: string; options: string[]; correct_index: number }[];
-  created_by: string | null;
+  code: string;
+  created_by: string;
   created_at: string;
-  updated_at: string;
 }
 
-/** Teacher batch flow: practicals per division/batch */
-export interface BatchPractical {
+export interface BatchStudent {
   id: string;
-  title: string;
-  description: string | null;
-  deadline: string;
-  division: 'A' | 'B';
-  batch: 'A' | 'B' | 'C';
-  practical_mode: 'code' | 'no-code';
-  programming_language: string | null;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
+  batch_id: string;
+  student_id: string;
+  joined_at: string;
 }

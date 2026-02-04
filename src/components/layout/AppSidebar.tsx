@@ -8,9 +8,10 @@ import {
   Settings,
   Users,
   LogOut,
-  GraduationCap,
   Sun,
-  Moon
+  Moon,
+  Layers,
+  GraduationCap
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,7 +29,6 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
-// Define the structure for Nav Items
 interface NavItem {
   title: string;
   url: string;
@@ -36,17 +36,29 @@ interface NavItem {
   roles: ('student' | 'teacher' | 'admin')[];
 }
 
-// Base nav items. "Subjects" vs "Batches" is resolved per role below.
-const baseNavItems: NavItem[] = [
-  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, roles: ['student', 'teacher', 'admin'] },
-  { title: 'Assignments', url: '/assignments', icon: FileText, roles: ['student', 'teacher'] },
-  { title: 'Submissions', url: '/submissions', icon: Upload, roles: ['teacher'] },
-  { title: 'Reports', url: '/reports', icon: BarChart3, roles: ['teacher', 'admin'] },
-  { title: 'Users', url: '/users', icon: Users, roles: ['admin'] },
+// 1. Shared Items
+const dashboardItem: NavItem = { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, roles: ['student', 'teacher', 'admin'] };
+const settingsItem: NavItem = { title: 'Settings', url: '/settings', icon: Settings, roles: ['student', 'teacher', 'admin'] };
+
+// 2. Role Specific Items
+const studentItems: NavItem[] = [
+  { title: 'Subjects', url: '/subjects', icon: BookOpen, roles: ['student'] },
+  { title: 'Batches', url: '/batches', icon: Layers, roles: ['student'] }, // Added for Student
+  { title: 'Assignments', url: '/assignments', icon: FileText, roles: ['student'] },
 ];
 
-const subjectsItem: NavItem = { title: 'Subjects', url: '/subjects', icon: BookOpen, roles: ['student', 'admin'] };
-const batchesItem: NavItem = { title: 'Batches', url: '/batches', icon: BookOpen, roles: ['teacher'] };
+const teacherItems: NavItem[] = [
+  { title: 'Batches', url: '/batches', icon: Layers, roles: ['teacher'] },
+  { title: 'Assignments', url: '/assignments', icon: FileText, roles: ['teacher'] },
+  { title: 'Submissions', url: '/submissions', icon: Upload, roles: ['teacher'] },
+  { title: 'Reports', url: '/reports', icon: BarChart3, roles: ['teacher'] },
+];
+
+const adminItems: NavItem[] = [
+  { title: 'Subjects', url: '/subjects', icon: BookOpen, roles: ['admin'] },
+  { title: 'Reports', url: '/reports', icon: BarChart3, roles: ['admin'] },
+  { title: 'Users', url: '/users', icon: Users, roles: ['admin'] },
+];
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
@@ -55,19 +67,21 @@ export function AppSidebar() {
 
   if (!user) return null;
 
-  // Teachers see "Batches" (→ /batches); students and HoD see "Subjects" (→ /subjects).
-  const secondNavItem = user.role === 'teacher' ? batchesItem : subjectsItem;
-  const navItems: NavItem[] = [
-    baseNavItems[0], // Dashboard
-    secondNavItem,
-    ...baseNavItems.slice(1), // Assignments, Submissions, Reports, Users
-  ];
-  const filteredItems = navItems.filter((item) => item.roles.includes(user.role));
+  // Resolve Nav Items based on Role
+  let navItems: NavItem[] = [dashboardItem];
+
+  if (user.role === 'student') {
+    navItems = [...navItems, ...studentItems];
+  } else if (user.role === 'teacher') {
+    navItems = [...navItems, ...teacherItems];
+  } else if (user.role === 'admin') { // Assuming 'hod' maps to 'admin' in your types or logic
+    navItems = [...navItems, ...adminItems];
+  }
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
 
-      {/* 1. HEADER: Brand Identity */}
+      {/* 1. HEADER */}
       <SidebarHeader className="h-24 flex items-center justify-center border-b border-sidebar-border px-4 group-data-[collapsible=icon]:px-0">
         <div className="flex items-center gap-0 w-full overflow-hidden transition-all group-data-[collapsible=icon]:justify-center">
           <img
@@ -84,15 +98,15 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      {/* 2. CONTENT: Navigation Links */}
+      {/* 2. CONTENT */}
       <SidebarContent className="px-2 py-4">
         <SidebarMenu>
           <div className="px-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsible=icon]:hidden">
             Workspace
           </div>
 
-          {filteredItems.map((item) => {
-            const isActive = location.pathname === item.url;
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.url || location.pathname.startsWith(item.url + '/');
             return (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
@@ -117,7 +131,7 @@ export function AppSidebar() {
 
         <SidebarSeparator className="my-4 bg-sidebar-border" />
 
-        {/* System / Settings Group */}
+        {/* System Settings */}
         <SidebarMenu>
           <div className="px-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsible=icon]:hidden">
             System
@@ -142,7 +156,7 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarContent>
 
-      {/* 3. FOOTER: User & Logout */}
+      {/* 3. FOOTER */}
       <SidebarFooter className="border-t border-sidebar-border bg-sidebar p-2">
         <Button
           variant="ghost"
@@ -156,9 +170,8 @@ export function AppSidebar() {
           </span>
         </Button>
 
-        {!user ? null : (
+        {user && (
           <div className="flex flex-col gap-2">
-            {/* User Info (Hidden when collapsed) */}
             <div className="hidden group-data-[collapsible=icon]:hidden px-2 py-1.5">
               <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
               <p className="text-xs text-muted-foreground capitalize">{user.role}</p>

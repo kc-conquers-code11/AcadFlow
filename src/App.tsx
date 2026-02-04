@@ -24,7 +24,7 @@ import UsersPage from "./pages/Users";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
-// NOTE: import structure changed
+// Auth Pages
 import { ForgotPassword, ResetPassword } from "./pages/index"
 
 const queryClient = new QueryClient();
@@ -39,35 +39,33 @@ const App = () => (
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
-
-            {/* Password Reset Routes */}
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Protected Routes Structure */}
-            {/* 1. Check Auth */}
+            {/* Protected Routes */}
             <Route element={<ProtectedRoute />}>
-
-              {/* 2. Apply Layout (Persistent Sidebar) */}
               <Route element={<MainLayout />}>
 
+                {/* --- 1. SHARED ROUTES (Student, Teacher, Admin) --- */}
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/subjects" element={<Subjects />} />
-                <Route path="/subjects/:subjectId" element={<SubjectDetail />} />
-                <Route path="/assignments" element={<Assignments />} />
+                <Route path="/settings" element={<Settings />} />
 
-                {/* Teacher Only: Batches (no HoD) */}
-                <Route element={<ProtectedRoute allowedRoles={['teacher']} />}>
+                {/* --- 2. ACADEMIC SHARED (Student & Teacher) --- */}
+                {/* Isko alag nikala taaki permission conflict na ho */}
+                <Route element={<ProtectedRoute allowedRoles={['student', 'teacher']} />}>
                   <Route path="/batches" element={<Batches />} />
-                  <Route path="/batches/:division/:batch" element={<BatchDashboard />} />
+                  <Route path="/batches/:batchId" element={<BatchDashboard />} /> {/* URL Fixed: uses ID now */}
+                  <Route path="/assignments" element={<Assignments />} />
                 </Route>
 
-                {/* Student Only */}
+                {/* --- 3. STUDENT ONLY --- */}
                 <Route element={<ProtectedRoute allowedRoles={['student']} />}>
+                  <Route path="/subjects" element={<Subjects />} />
+                  <Route path="/subjects/:subjectId" element={<SubjectDetail />} />
                   <Route path="/editor/:assignmentId" element={<EditorPage />} />
                 </Route>
 
-                {/* Teachers Only */}
+                {/* --- 4. TEACHER ONLY --- */}
                 <Route element={<ProtectedRoute allowedRoles={['teacher', 'admin']} />}>
                   <Route path="/submissions" element={<Submissions />} />
                   <Route path="/submissions/:assignmentId" element={<SubmissionList />} />
@@ -75,24 +73,19 @@ const App = () => (
                   <Route path="/reports" element={<Reports />} />
                 </Route>
 
-                {/* HOD Only */}
+                {/* --- 5. ADMIN ONLY --- */}
                 <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-                  <Route path="/users" element={<UsersPage />} />
+                   <Route path="/subjects" element={<Subjects />} />
+                   <Route path="/users" element={<UsersPage />} />
                 </Route>
 
-                <Route path="/settings" element={<Settings />} />
+              </Route>
+            </Route>
 
-
-
-
-
-              </Route> {/* End Layout */}
-            </Route> {/* End Auth Protection */}
-
-            {/* Redirects */}
+            {/* Default Redirect */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
-            {/* 404 */}
+            
+            {/* 404 Page */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
