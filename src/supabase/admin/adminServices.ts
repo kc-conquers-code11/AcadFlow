@@ -59,6 +59,7 @@ const addStaff = async ({ email, name, subjectId }) => {
             .from("teachers")
             .insert({
                 id: user.id,
+                user_id: user.id,
                 email,
                 name,
                 subjectId,
@@ -254,11 +255,85 @@ const getStaffs = async () => {
 
 // Student
 
-const addStudent = async () => {
+const addStudent = async ({ name, email, sem, batch, division }) => {
     try {
+        const { data: existingUser, error: checkError } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("email", email)
+            .single()
 
+        if (existingUser) {
+            return {
+                success: false,
+                message: "Student already exists"
+            }
+        }
+
+        if (checkError && checkError.code !== "PGRST116") {
+            throw checkError
+        }
+        const password = crypto.randomUUID()
+
+        const { data: signUpData, error: signUpError } =
+            await supabase.auth.signUp({
+                email,
+                password
+            })
+
+        if (signUpError) throw signUpError
+
+        const user = signUpData.user
+        if (!user) throw new Error("User creation failed")
+
+
+
+        const { error: profileError } = await supabase
+            .from("profiles")
+            .insert({
+                id: user.id,
+                email,
+                name,
+                role: "student",
+
+            })
+
+        if (profileError) throw profileError
+
+        const { error: teacherError } = await supabase
+            .from("students")
+            .insert({
+                id: user.id,
+                user_id: user.id,
+                email,
+                name,
+                sem,
+                batch,
+                division
+            })
+
+        if (teacherError) throw teacherError
+
+        // email notification for email and password
+        await sendPassword({
+            to: email,
+            subject: "Welcome to ACADFLOW",
+            role: "student",
+            password
+        })
+
+
+        return {
+            success: true,
+            message: "Student added. Verification email sent."
+        }
     } catch (error) {
+        console.error("supabase:admin:addstudent:", error);
 
+        return {
+            success: false,
+            message: error.message || "Failed to fetch staffs"
+        };
     }
 }
 
@@ -271,4 +346,4 @@ const bulkMappint = async () => { }
 const mapping = async () => { }
 
 
-export { addStaff, addStaffs, deleteStaff, editStaff, getStaffs }
+export { addStaff, addStaffs, deleteStaff, editStaff, getStaffs, addStudent }

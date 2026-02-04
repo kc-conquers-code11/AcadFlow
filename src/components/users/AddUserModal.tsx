@@ -14,6 +14,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { addStaff } from "@/supabase/admin/adminServices";
 
 interface AddUserModalProps {
     isOpen: boolean;
@@ -54,6 +55,8 @@ export function AddUserModal({ isOpen, onClose, type }: AddUserModalProps) {
     const handleAddSingle = (e: React.FormEvent) => {
         e.preventDefault();
         // TODO: Implement single add logic
+        if (type === 'faculty')
+            addStaff({ email: '', name: '', subjectId: '' })
         onClose();
     };
 
