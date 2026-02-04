@@ -1,5 +1,6 @@
 import { sendPassword } from "@/emails/sendUserNamePassword";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { IStaff } from "@/types/admin";
 
 // Staff
@@ -255,7 +256,7 @@ const getStaffs = async () => {
 
 // Student
 
-const addStudent = async ({ name, email, sem, batch, division }) => {
+const addStudent = async ({ enrollment, name, email, sem, batch, division }) => {
     try {
         const { data: existingUser, error: checkError } = await supabase
             .from("profiles")
@@ -275,15 +276,22 @@ const addStudent = async ({ name, email, sem, batch, division }) => {
         }
         const password = crypto.randomUUID()
 
-        const { data: signUpData, error: signUpError } =
-            await supabase.auth.signUp({
+        const signUpData =
+            await supabaseAdmin.auth.admin.createUser({
                 email,
-                password
-            })
+                password,
+                email_confirm: true,
+                user_metadata: {
+                    name,
+                    role: "student",
+                },
+            });
 
-        if (signUpError) throw signUpError
+        console.log(signUpData)
 
-        const user = signUpData.user
+        if (signUpData.error) throw signUpData.error
+
+        const user = signUpData?.data.user
         if (!user) throw new Error("User creation failed")
 
 
@@ -305,11 +313,11 @@ const addStudent = async ({ name, email, sem, batch, division }) => {
             .insert({
                 id: user.id,
                 user_id: user.id,
-                email,
                 name,
                 sem,
                 batch,
-                division
+                division,
+                enrollment
             })
 
         if (teacherError) throw teacherError

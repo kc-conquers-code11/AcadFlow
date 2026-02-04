@@ -45,22 +45,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 // --- Visual Components ---
 
-const StatCard = ({ title, value, label, icon: Icon, className }: any) => (
-  <motion.div
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    className={cn("bg-card text-card-foreground rounded-xl border p-5 shadow-sm flex items-center justify-between", className)}
-  >
-    <div>
-      <h3 className="text-2xl font-bold">{value}</h3>
-      <p className="text-sm font-medium text-muted-foreground">{title}</p>
-      {label && <p className="text-xs text-muted-foreground/80 mt-1">{label}</p>}
-    </div>
-    <div className={cn("p-3 rounded-xl bg-muted")}>
-      <Icon size={20} className="text-primary" />
-    </div>
-  </motion.div>
-);
+
 
 const UserAvatar = ({ name, src, size = "md" }: { name: string, src?: string, size?: "sm" | "md" }) => (
   <Avatar className={cn(

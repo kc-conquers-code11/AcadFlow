@@ -14,7 +14,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { addStaff } from "@/supabase/admin/adminServices";
+import { addStaff, addStudent } from "@/supabase/admin/adminServices";
 
 interface AddUserModalProps {
     isOpen: boolean;
@@ -25,6 +25,18 @@ interface AddUserModalProps {
 export function AddUserModal({ isOpen, onClose, type }: AddUserModalProps) {
     const [csvFile, setCsvFile] = useState<File | null>(null);
     const [previewData, setPreviewData] = useState<string[][]>([]);
+    const [singleUser, setSingleUser] = useState({
+        firstName: "",
+        lastName: "",
+        email: "",
+        enrollment: "",
+        year: "",
+        sem: "",
+        division: "",
+        batch: "",
+        department: "",
+    });
+
 
     const titleMap = {
         student: "Add Student",
@@ -52,13 +64,50 @@ export function AddUserModal({ isOpen, onClose, type }: AddUserModalProps) {
         }
     };
 
-    const handleAddSingle = (e: React.FormEvent) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { id, value } = e.target;
+        setSingleUser(prev => ({
+            ...prev,
+            [id]: value,
+        }));
+    };
+
+
+    const handleAddSingle = async (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: Implement single add logic
-        if (type === 'faculty')
-            addStaff({ email: '', name: '', subjectId: '' })
+
+        const fullName = `${singleUser.firstName} ${singleUser.lastName}`.trim();
+
+        if (type === "faculty") {
+            // await addStaff();
+        }
+
+        if (type === "student") {
+            await addStudent({
+                name: fullName,
+                email: singleUser.email,
+                enrollment: singleUser.enrollment,
+                sem: singleUser.sem,
+                division: singleUser.division,
+                batch: singleUser.batch,
+            });
+        }
+
+        setSingleUser({
+            firstName: "",
+            lastName: "",
+            email: "",
+            enrollment: "",
+            year: "",
+            sem: "",
+            division: "",
+            batch: "",
+            department: "",
+        });
+
         onClose();
     };
+
 
     const handleBulkAdd = () => {
         // TODO: Implement bulk add logic
@@ -87,17 +136,36 @@ export function AddUserModal({ isOpen, onClose, type }: AddUserModalProps) {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="firstName">First Name</Label>
-                                    <Input id="firstName" placeholder="John" required />
+                                    <Input
+                                        id="firstName"
+                                        placeholder="John"
+                                        required
+                                        value={singleUser.firstName}
+                                        onChange={handleInputChange}
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="lastName">Last Name</Label>
-                                    <Input id="lastName" placeholder="Doe" required />
+                                    <Input
+                                        id="lastName"
+                                        placeholder="Doe"
+                                        required
+                                        value={singleUser.lastName}
+                                        onChange={handleInputChange}
+                                    />
                                 </div>
                             </div>
 
                             <div className="space-y-2">
                                 <Label htmlFor="email">Email</Label>
-                                <Input id="email" type="email" placeholder="john.doe@college.edu" required />
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    placeholder="john.doe@college.edu"
+                                    required
+                                    value={singleUser.email}
+                                    onChange={handleInputChange}
+                                />
                             </div>
 
                             {type === "student" && (
@@ -105,25 +173,21 @@ export function AddUserModal({ isOpen, onClose, type }: AddUserModalProps) {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="enrollment">VU ID</Label>
-                                            <Input id="enrollment" placeholder="VU1S2526001" />
+                                            <Input id="enrollment" value={singleUser.enrollment} onChange={handleInputChange} />
                                         </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="year">Year</Label>
-                                            <Input id="year" placeholder="1st Year" />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="sem">Semester</Label>
-                                            <Input id="sem" placeholder="1" />
+                                            <Input id="sem" value={singleUser.sem} onChange={handleInputChange} />
                                         </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="division">Division</Label>
-                                            <Input id="division" placeholder="A" />
+                                            <Input id="division" value={singleUser.division} onChange={handleInputChange} />
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="batch">Batch</Label>
-                                            <Input id="batch" placeholder="A" />
+                                            <Input id="batch" value={singleUser.batch} onChange={handleInputChange} />
                                         </div>
                                     </div>
                                 </>
@@ -132,7 +196,12 @@ export function AddUserModal({ isOpen, onClose, type }: AddUserModalProps) {
                             {type === "faculty" && (
                                 <div className="space-y-2">
                                     <Label htmlFor="department">Department</Label>
-                                    <Input id="department" placeholder="Computer Science" />
+                                    <Input
+                                        id="department"
+                                        placeholder="Computer Science"
+                                        value={singleUser.department}
+                                        onChange={handleInputChange}
+                                    />
                                 </div>
                             )}
 
