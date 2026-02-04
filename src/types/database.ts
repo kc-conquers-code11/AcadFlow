@@ -7,7 +7,6 @@ export interface Profile {
   enrollment_number: string | null;
   year: number | null;
   avatar_url: string | null;
-  // New Fields for Student Identification
   division: 'A' | 'B' | null;
   batch: 'A' | 'B' | 'C' | null;
 }
@@ -31,9 +30,8 @@ export interface Assignment {
   programming_language: string | null;
   max_marks: number;
   created_by: string;
-  // New Fields for Targeting
-  target_division: 'A' | 'B' | null; // If null, applies to all divisions
-  target_batch: 'A' | 'B' | 'C' | null; // If null, applies to whole class
+  target_division: 'A' | 'B' | null;
+  target_batch: 'A' | 'B' | 'C' | null;
 }
 
 export interface Submission {
@@ -47,4 +45,22 @@ export interface Submission {
   marks: number | null;
   feedback: string | null;
   plagiarism_score: number;
+}
+
+// --- New Types for Dynamic Batches ---
+
+export interface Batch {
+  id: string;
+  name: string;
+  description: string | null;
+  code: string;
+  created_by: string;
+  created_at: string;
+}
+
+export interface BatchStudent {
+  id: string;
+  batch_id: string;
+  student_id: string;
+  joined_at: string;
 }

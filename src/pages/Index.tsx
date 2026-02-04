@@ -162,7 +162,7 @@ const Index = () => {
             </div>
 
             <div className="flex gap-2 justify-center">
-              {['Student', 'Teacher', 'HOD'].map((role) => (
+              {['Student', 'Teacher', 'admin'].map((role) => (
                 <button
                   key={role}
                   onClick={() => handleDemoLogin(role)}

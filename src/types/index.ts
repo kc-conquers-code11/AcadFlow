@@ -1,5 +1,5 @@
 // User roles
-export type UserRole = 'student' | 'teacher' | 'hod';
+export type UserRole = 'student' | 'teacher' | 'admin';
 
 // User profile
 export interface User {
@@ -10,6 +10,8 @@ export interface User {
   department: string;
   year?: number; // Only for students
   enrollmentNumber?: string; // Only for students
+  batch?: string; // Only for students
+  division?: string; // Only for students
   createdAt: string;
 }
 

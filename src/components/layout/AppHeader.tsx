@@ -9,13 +9,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  Check, 
-  ChevronsUpDown, 
-  LogOut, 
-  Bell, 
-  Search, 
-  Slash 
+import {
+  Check,
+  ChevronsUpDown,
+  LogOut,
+  Bell,
+  Search,
+  Slash
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -43,19 +43,19 @@ export function AppHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 border-b border-slate-200/60 bg-white/80 backdrop-blur-md backdrop-saturate-150 px-6 flex items-center gap-4 transition-all supports-[backdrop-filter]:bg-white/60">
-      
+    <header className="sticky top-0 z-30 h-16 border-b border-border bg-background/80 backdrop-blur-md backdrop-saturate-150 px-6 flex items-center gap-4 transition-all supports-[backdrop-filter]:bg-background/60">
+
       {/* 1. Left: Sidebar Trigger & Breadcrumbs */}
       <div className="flex items-center gap-3">
-        <SidebarTrigger className="text-slate-500 hover:bg-slate-100 hover:text-slate-900" />
-        
-        {/* Breadcrumb Separator */}
-        <div className="h-4 w-px bg-slate-200 mx-1 hidden md:block" />
+        <SidebarTrigger className="text-muted-foreground hover:bg-muted hover:text-foreground" />
 
-        <div className="hidden md:flex items-center text-sm text-slate-500">
-          <span className="hover:text-slate-800 transition-colors cursor-default font-medium">Academics</span>
-          <Slash className="mx-2 text-slate-300" size={14} />
-          <span className="font-semibold text-slate-900">{getPageTitle()}</span>
+        {/* Breadcrumb Separator */}
+        <div className="h-4 w-px bg-border mx-1 hidden md:block" />
+
+        <div className="hidden md:flex items-center text-sm text-muted-foreground">
+          <span className="hover:text-foreground transition-colors cursor-default font-medium">Academics</span>
+          <Slash className="mx-2 text-muted-foreground/50" size={14} />
+          <span className="font-semibold text-foreground">{getPageTitle()}</span>
         </div>
       </div>
 
@@ -63,35 +63,35 @@ export function AppHeader() {
 
       {/* 2. Middle: Search (Hidden on mobile) */}
       <div className="hidden md:flex relative max-w-xs w-full mr-4 group">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={16} />
-        <input 
-          type="text" 
-          placeholder="Search subjects..." 
-          className="h-9 w-full pl-9 pr-4 rounded-full bg-slate-100/50 border border-transparent focus:bg-white focus:border-indigo-200 focus:ring-4 focus:ring-indigo-50 transition-all text-sm outline-none placeholder:text-slate-400"
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={16} />
+        <input
+          type="text"
+          placeholder="Search subjects..."
+          className="h-9 w-full pl-9 pr-4 rounded-full bg-muted/50 border border-transparent focus:bg-background focus:border-ring focus:ring-4 focus:ring-ring/10 transition-all text-sm outline-none placeholder:text-muted-foreground"
         />
       </div>
 
       {/* 3. Right: User Actions */}
       <div className="flex items-center gap-3">
-        
+
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full relative">
+        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-muted rounded-full relative">
           <Bell size={18} />
-          <span className="absolute top-2.5 right-2.5 h-2 w-2 bg-red-500 rounded-full border-2 border-white" />
+          <span className="absolute top-2.5 right-2.5 h-2 w-2 bg-destructive rounded-full border-2 border-background" />
         </Button>
 
-        <div className="h-6 w-px bg-slate-200 mx-1" />
+        <div className="h-6 w-px bg-border mx-1" />
 
-      
+
 
         {/* User Profile */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-9 w-9 rounded-full ring-2 ring-white shadow-sm ml-1 hover:bg-slate-100">
+            <Button variant="ghost" className="relative h-9 w-9 rounded-full ring-2 ring-background shadow-sm ml-1 hover:bg-muted">
               <Avatar className="h-9 w-9">
                 <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`} alt={user.name} />
-                <AvatarFallback className="bg-slate-100 text-slate-600 font-bold">
-                  {user.name.substring(0, 2).toUpperCase()}
+                <AvatarFallback className="bg-muted text-muted-foreground font-bold">
+                  {user?.name?.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
             </Button>
@@ -99,8 +99,8 @@ export function AppHeader() {
           <DropdownMenuContent className="w-56 p-2" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-bold leading-none text-slate-900">{user.name}</p>
-                <p className="text-xs leading-none text-slate-500 font-medium">
+                <p className="text-sm font-bold leading-none text-foreground">{user.name}</p>
+                <p className="text-xs leading-none text-muted-foreground font-medium">
                   {user.email}
                 </p>
               </div>
@@ -109,8 +109,8 @@ export function AppHeader() {
             <DropdownMenuItem className="cursor-pointer text-xs font-medium py-2">
               Account Settings
             </DropdownMenuItem>
-            <DropdownMenuItem 
-              className="cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50 text-xs font-medium py-2" 
+            <DropdownMenuItem
+              className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 text-xs font-medium py-2"
               onClick={logout}
             >
               <LogOut className="mr-2 h-3.5 w-3.5" />
