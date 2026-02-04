@@ -8,216 +8,185 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Pencil, ExternalLink, Trash2, Copy, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Pencil, Eye, Trash2, Play, FileEdit, CheckCircle2 } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { Badge } from '@/components/ui/badge';
 import { cn } from "@/lib/utils";
 
 export interface BatchTaskRow {
   id: string;
   title: string;
   description: string;
-  submittedCount: number;
-  totalStudents: number;
-  submittedPercent: number;
+  experimentNumber: string;
+  submittedCount?: number;
   deadline?: string;
-  /** For edit prefilling from DB */
-  quizQuestions?: { question: string; options: string[]; correctIndex: number }[];
-  practicalMode?: 'code' | 'no-code';
+  maxMarks: number;
+  rubrics?: any[];
+  practicalMode?: 'code' | 'no-code' | 'both';
+  studentStatus?: 'draft' | 'submitted' | 'evaluated' | null;
+  studentMarks?: number | null;
 }
 
-export type SortConfig = {
-  key: 'submittedCount' | 'submittedPercent';
-  direction: 'asc' | 'desc';
-} | null;
-
 interface BatchPracticalsTableProps {
-  division: string;
-  batch: string;
   items: BatchTaskRow[];
-  onAdd: () => void;
+  userRole: string;
   onEdit: (item: BatchTaskRow) => void;
-  onCopy?: (item: BatchTaskRow) => void;
   onDelete: (item: BatchTaskRow) => void;
-  hideHeader?: boolean;
-  sortConfig?: SortConfig;
-  onSort?: (key: 'submittedCount' | 'submittedPercent') => void;
+  onViewResponses: (item: BatchTaskRow) => void;
 }
 
 export function BatchPracticalsTable({
-  division,
-  batch,
   items,
-  onAdd,
+  userRole,
   onEdit,
-  onCopy,
   onDelete,
-  hideHeader = false,
-  sortConfig,
-  onSort,
+  onViewResponses,
 }: BatchPracticalsTableProps) {
 
-  const getSortIcon = (key: 'submittedCount' | 'submittedPercent') => {
-    if (sortConfig?.key !== key) return <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />;
-    return sortConfig.direction === 'asc'
-      ? <ArrowUp className="ml-2 h-4 w-4 text-primary" />
-      : <ArrowDown className="ml-2 h-4 w-4 text-primary" />;
-  };
-
-  const getSortButtonClass = (key: 'submittedCount' | 'submittedPercent') => {
-    return cn(
-      "-ml-3 h-8 hover:bg-accent hover:text-accent-foreground",
-      sortConfig?.key === key && "text-primary font-bold"
-    );
-  };
+  const isTeacher = userRole === 'teacher' || userRole === 'hod';
 
   return (
-    <section className="space-y-4">
-      {!hideHeader && (
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">Practicals</h2>
-          <Button size="sm" onClick={onAdd}>
-            Add
-          </Button>
-        </div>
-      )}
-      <div className="border border-border rounded-lg overflow-hidden bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50 hover:bg-muted/50">
-              <TableHead className="w-16">Sr. No</TableHead>
-              <TableHead>Title</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="w-36 text-center">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={getSortButtonClass('submittedCount')}
-                  onClick={() => onSort?.('submittedCount')}
-                >
-                  Count
-                  {getSortIcon('submittedCount')}
-                </Button>
-              </TableHead>
-              <TableHead className="w-36 text-center">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={getSortButtonClass('submittedPercent')}
-                  onClick={() => onSort?.('submittedPercent')}
-                >
-                  Submitted %
-                  {getSortIcon('submittedPercent')}
-                </Button>
-              </TableHead>
-              <TableHead className="w-48 text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                  No practicals. Click Add to create one.
-                </TableCell>
-              </TableRow>
+    <div className="border border-border rounded-lg overflow-hidden bg-white shadow-sm">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-slate-50 hover:bg-slate-50">
+            <TableHead className="w-20 font-bold">Exp No</TableHead>
+            <TableHead className="font-bold">Title & Aim</TableHead>
+            <TableHead className="w-32 text-center font-bold">Mode</TableHead>
+            
+            {isTeacher ? (
+               <TableHead className="w-32 text-center font-bold">Deadline</TableHead>
             ) : (
-              items.map((item, index) => (
-                <TableRow key={item.id} className="border-b border-border hover:bg-muted/50 transition-colors">
-                  <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
-                  <TableCell className="font-medium text-foreground">{item.title}</TableCell>
-                  <TableCell className="text-muted-foreground max-w-xs truncate">
-                    {item.description || '—'}
-                  </TableCell>
-                  <TableCell className="text-center text-muted-foreground">
-                    {item.submittedCount}
-                  </TableCell>
-                  <TableCell className="text-center text-muted-foreground">
-                    {item.submittedPercent}%
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <TooltipProvider>
-                      <div className="flex items-center justify-end gap-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                              onClick={() => onEdit(item)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                              <span className="sr-only">Edit</span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Edit</p>
-                          </TooltipContent>
-                        </Tooltip>
+               <TableHead className="w-36 text-center font-bold">Status / Score</TableHead>
+            )}
+            
+            <TableHead className="w-40 text-right font-bold pr-6">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
+                No experiments found.
+              </TableCell>
+            </TableRow>
+          ) : (
+            items.map((item) => {
+              // LOGIC FIX: If status is evaluated OR marks exist (not null), show score
+              const showScore = item.studentStatus === 'evaluated' || (item.studentMarks !== null && item.studentMarks !== undefined);
 
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" asChild>
-                              <Link
-                                to={`/submissions/${item.id}?division=${division}&batch=${batch}`}
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                                <span className="sr-only">View Submissions</span>
-                              </Link>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>View Submissions</p>
-                          </TooltipContent>
-                        </Tooltip>
+              return (
+                <TableRow key={item.id} className="group hover:bg-slate-50/50 transition-colors">
+                  <TableCell className="font-mono font-medium text-slate-600">
+                    {item.experimentNumber || '-'}
+                  </TableCell>
+                  
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-foreground">{item.title}</span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[250px]">
+                        {item.description || 'No description'}
+                      </span>
+                    </div>
+                  </TableCell>
 
-                        {onCopy && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                                onClick={() => onCopy(item)}
-                              >
-                                <Copy className="h-4 w-4" />
-                                <span className="sr-only">Copy to another batch</span>
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Copy to another batch</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
+                  <TableCell className="text-center">
+                    <Badge variant="secondary" className="font-normal text-[10px] capitalize">
+                       {item.practicalMode || 'code'}
+                    </Badge>
+                  </TableCell>
 
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-100/10"
-                              onClick={() => onDelete(item)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">Delete</span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Delete</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TooltipProvider>
+                  {isTeacher ? (
+                    <TableCell className="text-center text-xs text-muted-foreground">
+                      {item.deadline ? new Date(item.deadline).toLocaleDateString() : '-'}
+                    </TableCell>
+                  ) : (
+                    <TableCell className="text-center">
+                      {/* STUDENT STATUS DISPLAY */}
+                      {showScore ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 px-3">
+                            {item.studentMarks ?? 0} / {item.maxMarks}
+                          </Badge>
+                          <span className="text-[10px] text-green-600 font-medium flex items-center gap-0.5">
+                            <CheckCircle2 size={10} /> Graded
+                          </span>
+                        </div>
+                      ) : item.studentStatus === 'submitted' ? (
+                        <Badge className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-50">Submitted</Badge>
+                      ) : item.studentStatus === 'draft' ? (
+                        <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200">Draft</Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground font-mono">-</span>
+                      )}
+                    </TableCell>
+                  )}
+
+                  <TableCell className="text-right pr-4">
+                    <div className="flex items-center justify-end gap-2">
+                      
+                      {/* --- STUDENT ACTIONS --- */}
+                      {!isTeacher && (
+                        <Button 
+                          asChild 
+                          size="sm" 
+                          variant={showScore || item.studentStatus === 'submitted' ? "outline" : "default"}
+                          className={cn(
+                            "transition-all",
+                            showScore || item.studentStatus === 'submitted'
+                              ? "hover:bg-slate-100" 
+                              : "bg-blue-600 hover:bg-blue-700 shadow-sm"
+                          )}
+                        >
+                          <Link to={`/practical/${item.id}`}>
+                             {showScore || item.studentStatus === 'submitted' ? (
+                               <>View Answer</>
+                             ) : item.studentStatus === 'draft' ? (
+                               <><FileEdit className="mr-2 h-3 w-3" /> Resume</>
+                             ) : (
+                               <><Play className="mr-2 h-3 w-3" /> Solve</>
+                             )}
+                          </Link>
+                        </Button>
+                      )}
+
+                      {/* --- TEACHER ACTIONS --- */}
+                      {isTeacher && (
+                        <TooltipProvider>
+                            <div className="flex gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-blue-600" onClick={() => onViewResponses(item)}>
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Evaluate</p></TooltipContent>
+                              </Tooltip>
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-500" onClick={() => onEdit(item)}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Edit</p></TooltipContent>
+                              </Tooltip>
+                            </div>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </section>
+              );
+            })
+          )}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
