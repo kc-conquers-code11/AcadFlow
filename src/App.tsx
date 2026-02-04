@@ -62,8 +62,7 @@ const App = () => (
                 <Route element={<ProtectedRoute allowedRoles={['student']} />}>
                   <Route path="/subjects" element={<Subjects />} />
                   <Route path="/subjects/:subjectId" element={<SubjectDetail />} />
-                  <Route path="/editor/:assignmentId" element={<EditorPage />} />
-                </Route>
+<Route path="/editor/:practicalId" element={<EditorPage />} />                </Route>
 
                 {/* --- 4. TEACHER ONLY --- */}
                 <Route element={<ProtectedRoute allowedRoles={['teacher', 'admin']} />}>
