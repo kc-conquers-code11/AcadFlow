@@ -25,7 +25,8 @@ interface SubmissionListModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   practical: any; 
-  onEvaluate: (submissionId: string) => void; 
+  // UPDATED: Now accepts studentId to open specific evaluation
+  onEvaluate: (practicalId: string, studentId: string) => void; 
 }
 
 export function SubmissionListModal({ open, onOpenChange, practical, onEvaluate }: SubmissionListModalProps) {
@@ -41,24 +42,22 @@ export function SubmissionListModal({ open, onOpenChange, practical, onEvaluate 
 
   const fetchList = async () => {
     setLoading(true);
-    console.log("Fetching submissions for practical:", practical.id);
-
     try {
+      // UPDATED QUERY: Added 'student_id' explicitly to select list
       const { data, error } = await supabase
         .from('submissions')
         .select(`
-          id, status, marks, submitted_at, practical_id,
+          id, status, marks, submitted_at, practical_id, student_id,
           profiles:student_id (name, enrollment_number)
         `)
         .eq('practical_id', practical.id)
-        .order('submitted_at', { ascending: false }); // Latest first
+        .order('submitted_at', { ascending: false }); 
 
       if (error) {
         console.error("Supabase Error:", error);
         throw error;
       }
 
-      console.log("Fetched Data:", data);
       setSubmissions(data || []);
     } catch (err: any) {
       toast.error("Failed to load submissions list");
@@ -171,9 +170,15 @@ export function SubmissionListModal({ open, onOpenChange, practical, onEvaluate 
                       </TableCell>
                       
                       <TableCell className="text-right pr-4">
-                        <Button size="sm" variant="outline" onClick={() => onEvaluate(sub.practical_id)} className="shadow-sm">
+                        {/* UPDATED CLICK HANDLER: Pass student_id */}
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => onEvaluate(sub.practical_id, sub.student_id)} 
+                          className="shadow-sm"
+                        >
                           <FileText className="h-4 w-4 mr-2 text-blue-600" />
-                          View & Grade
+                          {sub.status === 'evaluated' ? 'Re-Evaluate' : 'View & Grade'}
                         </Button>
                       </TableCell>
                     </TableRow>

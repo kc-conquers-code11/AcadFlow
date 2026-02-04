@@ -30,7 +30,8 @@ export default function BatchDashboard() {
   const [selectedPractical, setSelectedPractical] = useState<any>(null);
   
   const [evalModalOpen, setEvalModalOpen] = useState(false); 
-  const [selectedPracIdForEval, setSelectedPracIdForEval] = useState<string | null>(null);
+  // NEW: Store specific student ID to open directly
+  const [selectedStudentIdForEval, setSelectedStudentIdForEval] = useState<string | null>(null);
   
   const [editingRow, setEditingRow] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -137,7 +138,6 @@ export default function BatchDashboard() {
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto min-h-screen bg-muted/40 transition-colors duration-200">
       
-      {/* Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">{batchDetails?.name}</h1>
@@ -158,7 +158,6 @@ export default function BatchDashboard() {
         )}
       </header>
 
-      {/* Main Tabs */}
       <Tabs defaultValue="experiments" className="space-y-6">
          
          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border pb-1">
@@ -214,7 +213,6 @@ export default function BatchDashboard() {
 
       </Tabs>
 
-      {/* Modals - Wrapped in fragments, they manage their own internal theme via Radix/Shadcn */}
       {isTeacher && (
         <>
           <BatchTaskModal 
@@ -229,8 +227,16 @@ export default function BatchDashboard() {
              open={listModalOpen}
              onOpenChange={setListModalOpen}
              practical={selectedPractical}
-             onEvaluate={(pracId) => {
-               setSelectedPracIdForEval(pracId); 
+             onEvaluate={(pracId, studentId) => { 
+               // FIX: SubmissionList now passes PracticalID AND StudentID (optional)
+               // But wait, the list modal usually passes just the row ID or we need to handle the structure.
+               // We will update SubmissionListModal to pass student_id if possible, 
+               // or we rely on logic below.
+               
+               // For now, let's assume we pass the practical ID, but we need to pass the specific student's ID 
+               // if we want to jump to them. 
+               // Let's update SubmissionListModal to pass the studentID as well (see next file).
+               setSelectedStudentIdForEval(studentId); 
                setEvalModalOpen(true);
              }}
           />
@@ -239,6 +245,7 @@ export default function BatchDashboard() {
             open={evalModalOpen} 
             onOpenChange={setEvalModalOpen} 
             practicalId={selectedPractical?.id} 
+            initialStudentId={selectedStudentIdForEval} // Pass specific student
           />
         </>
       )}
