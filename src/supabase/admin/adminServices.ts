@@ -345,5 +345,21 @@ const bulkMappint = async () => { }
 
 const mapping = async () => { }
 
+// subjects
+const getSubjects = async () => {
+    try {
+        const { data: subjectsData, error: subjectError } = await supabase.from("subjects").select("subject_id, name, sem, created_at")
+        if (subjectError) throw subjectError
+        return subjectsData
 
-export { addStaff, addStaffs, deleteStaff, editStaff, getStaffs, addStudent }
+    } catch (error) {
+        console.error("supabase:admin:getSubjects:", error);
+
+        return {
+            success: false,
+            message: error.message || "Failed to fetch staffs"
+        };
+    }
+}
+
+export { addStaff, addStaffs, deleteStaff, editStaff, getStaffs, addStudent, getSubjects }
