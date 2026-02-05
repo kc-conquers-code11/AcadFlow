@@ -38,7 +38,7 @@ export function AppHeader() {
           .select('*')
           .eq('id', user.id)
           .single();
-        
+
         if (data) setProfile(data);
       };
       fetchProfile();
@@ -51,12 +51,12 @@ export function AppHeader() {
   const getPageTitle = () => {
     const parts = location.pathname.split('/').filter(Boolean);
     const lastPart = parts[parts.length - 1];
-    
+
     if (!lastPart || lastPart === 'dashboard') return 'Overview';
-    
+
     // If it's an ID (UUID), show 'Details'
     if (lastPart.length > 20) return 'Details';
-    
+
     // Capitalize
     return lastPart.charAt(0).toUpperCase() + lastPart.slice(1);
   };
@@ -123,33 +123,33 @@ export function AppHeader() {
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          
+
           <DropdownMenuContent className="w-56 p-2" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <div className="flex items-center justify-between">
-                   <p className="text-sm font-bold leading-none text-foreground">{displayName}</p>
-                   <Badge variant="outline" className={`text-[10px] h-5 px-1.5 capitalize ${roleColors[displayRole] || 'bg-slate-100'}`}>
-                      {displayRole}
-                   </Badge>
+                  <p className="text-sm font-bold leading-none text-foreground">{displayName}</p>
+                  <Badge variant="outline" className={`text-[10px] h-5 px-1.5 capitalize ${roleColors[displayRole] || 'bg-slate-100'}`}>
+                    {displayRole}
+                  </Badge>
                 </div>
                 <p className="text-xs leading-none text-muted-foreground font-medium truncate">
                   {profile?.email || user.email}
                 </p>
               </div>
             </DropdownMenuLabel>
-            
+
             <DropdownMenuSeparator />
-            
-            <DropdownMenuItem 
+
+            <DropdownMenuItem
               className="cursor-pointer text-xs font-medium py-2"
-              onClick={() => navigate('/dashboard/settings')}
+              onClick={() => navigate('/settings')}
             >
               <Settings className="mr-2 h-3.5 w-3.5 text-slate-500" />
               Account Settings
             </DropdownMenuItem>
-            
-            <DropdownMenuItem 
+
+            <DropdownMenuItem
               className="cursor-pointer text-xs font-medium py-2"
               onClick={() => navigate('/dashboard/profile')} // Optional: if you have a public profile page
             >
@@ -158,7 +158,7 @@ export function AppHeader() {
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
-            
+
             <DropdownMenuItem
               className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 text-xs font-medium py-2"
               onClick={logout}
