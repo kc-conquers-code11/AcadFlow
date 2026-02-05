@@ -28,7 +28,7 @@ import { Progress } from '@/components/ui/progress';
 
 // --- Enhanced Visual Components ---
 
-const StatCard = ({ title, value, icon: Icon, gradient, delay = 0, subtitle }: any) => (
+const StatCard = ({ title, value, icon: Icon, backgroundColor, textColor = "text-white", iconClassName, delay = 0, subtitle }: any) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -36,22 +36,21 @@ const StatCard = ({ title, value, icon: Icon, gradient, delay = 0, subtitle }: a
     whileHover={{ scale: 1.02, y: -2 }}
     className="group relative overflow-hidden"
   >
-    <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-card">
-      <div className={cn("absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity", gradient)} />
+    <Card
+      className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+      style={{ backgroundColor }}
+    >
       <CardContent className="p-6 relative">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <p className={cn("text-sm font-medium opacity-90", textColor)}>{title}</p>
             <div className="flex items-baseline gap-2">
-              <h3 className="text-3xl font-bold tracking-tight text-foreground">{value}</h3>
-              {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
+              <h3 className={cn("text-4xl font-bold tracking-tight", textColor)}>{value}</h3>
+              {subtitle && <span className={cn("text-xs opacity-80", textColor)}>{subtitle}</span>}
             </div>
           </div>
-          <div className={cn(
-            "p-3 rounded-xl transition-all duration-300 group-hover:scale-110",
-            gradient
-          )}>
-            <Icon className="h-5 w-5 text-white" />
+          <div className="p-3 rounded-xl  transition-all duration-300 group-hover:scale-110">
+            <Icon className={cn("h-6 w-6", iconClassName || "text-white")} />
           </div>
         </div>
       </CardContent>
@@ -325,21 +324,27 @@ export default function Dashboard() {
             title="Pending Tasks"
             value={stats.pendingCount}
             icon={Clock}
-            gradient="bg-gradient-to-br from-amber-500 to-orange-600"
+            backgroundColor="#0077B6"
+            textColor="text-white"
+            iconClassName="text-white"
             delay={0.1}
           />
           <StatCard
             title="Submitted"
             value={stats.submittedCount}
             icon={CheckCircle2}
-            gradient="bg-gradient-to-br from-blue-500 to-indigo-600"
+            backgroundColor="#00B4D8"
+            textColor="text-white"
+            iconClassName="text-white"
             delay={0.2}
           />
           <StatCard
             title="Graded"
             value={stats.evaluatedCount}
             icon={TrendingUp}
-            gradient="bg-gradient-to-br from-emerald-500 to-teal-600"
+            backgroundColor="#90E0EF"
+            textColor="text-[#023E8A]"
+            iconClassName="text-[#023E8A]"
             delay={0.3}
           />
         </div>
@@ -426,28 +431,36 @@ export default function Dashboard() {
           title="Total Subjects"
           value={stats.totalSubjects}
           icon={BookOpen}
-          gradient="bg-gradient-to-br from-violet-500 to-purple-600"
+          backgroundColor="#0077B6"
+          textColor="text-white"
+          iconClassName="text-white"
           delay={0.1}
         />
         <StatCard
           title="Tasks Created"
           value={stats.totalAssignments}
           icon={FileText}
-          gradient="bg-gradient-to-br from-slate-500 to-slate-700"
+          backgroundColor="#00B4D8"
+          textColor="text-white"
+          iconClassName="text-white"
           delay={0.2}
         />
         <StatCard
           title="Pending Reviews"
           value={stats.pendingCount}
           icon={Clock}
-          gradient="bg-gradient-to-br from-amber-500 to-orange-600"
+          backgroundColor="#90E0EF"
+          textColor="text-[#023E8A]"
+          iconClassName="text-[#023E8A]"
           delay={0.3}
         />
         <StatCard
           title="Defaulters"
           value={0}
           icon={AlertCircle}
-          gradient="bg-gradient-to-br from-red-500 to-rose-600"
+          backgroundColor="#CAF0F8"
+          textColor="text-[#0077B6]"
+          iconClassName="text-[#0077B6]"
           delay={0.4}
         />
       </div>
