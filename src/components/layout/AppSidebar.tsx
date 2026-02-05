@@ -161,7 +161,45 @@ export function AppSidebar() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          onClick={(e) => {
+            const newTheme = theme === 'dark' ? 'light' : 'dark';
+
+            // @ts-ignore
+            if (!document.startViewTransition) {
+              setTheme(newTheme);
+              return;
+            }
+
+            const x = e.clientX;
+            const y = e.clientY;
+            const right = window.innerWidth - x;
+            const bottom = window.innerHeight - y;
+            const maxRadius = Math.hypot(
+              Math.max(x, right),
+              Math.max(y, bottom)
+            );
+
+            // @ts-ignore
+            const transition = document.startViewTransition(() => {
+              setTheme(newTheme);
+            });
+
+            transition.ready.then(() => {
+              document.documentElement.animate(
+                {
+                  clipPath: [
+                    `circle(0px at ${x}px ${y}px)`,
+                    `circle(${maxRadius}px at ${x}px ${y}px)`,
+                  ],
+                },
+                {
+                  duration: 500,
+                  easing: 'ease-in-out',
+                  pseudoElement: '::view-transition-new(root)',
+                }
+              );
+            });
+          }}
           className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-sidebar-accent mb-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         >
           {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
