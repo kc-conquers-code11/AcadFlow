@@ -11,7 +11,8 @@ import {
   Sun,
   Moon,
   Layers,
-  GraduationCap
+  ShieldCheck,
+  UserCog
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,8 +43,7 @@ const settingsItem: NavItem = { title: 'Settings', url: '/settings', icon: Setti
 
 // 2. Role Specific Items
 const studentItems: NavItem[] = [
-  // { title: 'Subjects', url: '/subjects', icon: BookOpen, roles: ['student'] },
-  { title: 'Batches', url: '/batches', icon: Layers, roles: ['student'] }, // Added for Student
+  { title: 'Batches', url: '/batches', icon: Layers, roles: ['student'] },
   { title: 'Assignments', url: '/assignments', icon: FileText, roles: ['student'] },
 ];
 
@@ -55,9 +55,9 @@ const teacherItems: NavItem[] = [
 ];
 
 const adminItems: NavItem[] = [
-  // { title: 'Subjects', url: '/subjects', icon: BookOpen, roles: ['admin'] },
-  { title: 'Reports', url: '/reports', icon: BarChart3, roles: ['admin'] },
-  { title: 'Users', url: '/users', icon: Users, roles: ['admin'] },
+  { title: 'Master Console', url: '/admin', icon: ShieldCheck, roles: ['admin'] },
+  // { title: 'Users', url: '/users', icon: UserCog, roles: ['admin'] },
+  { title: 'Global Reports', url: '/reports', icon: BarChart3, roles: ['admin'] },
 ];
 
 export function AppSidebar() {
@@ -74,7 +74,8 @@ export function AppSidebar() {
     navItems = [...navItems, ...studentItems];
   } else if (user.role === 'teacher') {
     navItems = [...navItems, ...teacherItems];
-  } else if (user.role === 'admin') { // Assuming 'hod' maps to 'admin' in your types or logic
+  } else if (user.role === 'admin') {
+    // Admin ko dashboard item bhi dikhega, plus admin items
     navItems = [...navItems, ...adminItems];
   }
 
@@ -161,45 +162,7 @@ export function AppSidebar() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={(e) => {
-            const newTheme = theme === 'dark' ? 'light' : 'dark';
-
-            // @ts-ignore
-            if (!document.startViewTransition) {
-              setTheme(newTheme);
-              return;
-            }
-
-            const x = e.clientX;
-            const y = e.clientY;
-            const right = window.innerWidth - x;
-            const bottom = window.innerHeight - y;
-            const maxRadius = Math.hypot(
-              Math.max(x, right),
-              Math.max(y, bottom)
-            );
-
-            // @ts-ignore
-            const transition = document.startViewTransition(() => {
-              setTheme(newTheme);
-            });
-
-            transition.ready.then(() => {
-              document.documentElement.animate(
-                {
-                  clipPath: [
-                    `circle(0px at ${x}px ${y}px)`,
-                    `circle(${maxRadius}px at ${x}px ${y}px)`,
-                  ],
-                },
-                {
-                  duration: 500,
-                  easing: 'ease-in-out',
-                  pseudoElement: '::view-transition-new(root)',
-                }
-              );
-            });
-          }}
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-sidebar-accent mb-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         >
           {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}

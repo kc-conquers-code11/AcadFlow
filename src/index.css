@@ -299,9 +299,3 @@
   background-color: color-mix(in oklch, var(--destructive), transparent 90%);
   color: var(--destructive);
 }
-
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
-}

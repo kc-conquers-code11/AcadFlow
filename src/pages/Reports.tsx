@@ -1,20 +1,13 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { 
-  TrendingUp, 
-  TrendingDown, 
-  AlertTriangle, 
-  CheckCircle2, 
-  BarChart3, 
-  BookOpen, 
   Download,
   Filter,
   Loader2,
-  Beaker,
-  Users,
-  LayoutGrid,
+  CheckCircle2,
+  AlertTriangle,
+  TrendingUp,
   X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,50 +23,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// --- Visual Components ---
-
-const StatCard = ({ title, value, icon: Icon, color, trend, trendLabel, delay = 0 }: any) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay, duration: 0.4 }}
-    className="bg-card rounded-xl border border-border p-5 shadow-sm flex flex-col justify-between"
-  >
-    <div className="flex justify-between items-start mb-4">
-      <div className={cn("p-2.5 rounded-lg", color)}>
-        <Icon size={20} />
-      </div>
-      {trend && (
-        <div className={cn("flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full", 
-          trend === 'up' ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-        )}>
-          {trend === 'up' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-          {trendLabel}
-        </div>
-      )}
-    </div>
-    <div>
-      <h3 className="text-2xl font-bold text-foreground tracking-tight">{value}</h3>
-      <p className="text-sm font-medium text-muted-foreground mt-1">{title}</p>
-    </div>
-  </motion.div>
-);
-
-const ProgressBar = ({ value, colorClass }: { value: number, colorClass: string }) => (
-  <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-    <motion.div 
-      initial={{ width: 0 }}
-      animate={{ width: `${value}%` }}
-      transition={{ duration: 1, ease: "easeOut" }}
-      className={cn("h-full rounded-full", colorClass)} 
-    />
-  </div>
-);
+// Import Modular Components
+import { ReportStats } from '@/components/reports/ReportStats';
+import { BatchTable } from '@/components/reports/BatchTable';
+import { SubjectTable } from '@/components/reports/SubjectTable';
 
 export default function Reports() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('batches'); // Track active tab for export logic
+  const [activeTab, setActiveTab] = useState('batches');
   const [filterMode, setFilterMode] = useState<'all' | 'risk' | 'top'>('all');
 
   // Stats State
@@ -89,8 +47,10 @@ export default function Reports() {
   const [batchPerformance, setBatchPerformance] = useState<any[]>([]);
 
   useEffect(() => {
-    if (user && (user.role === 'teacher' || user.role === 'hod')) {
+    if (user && (user.role === 'teacher' || user.role === 'hod' || user.role === 'admin')) {
       fetchAnalytics();
+    } else {
+        setLoading(false); // Stop loading if unauthorized
     }
   }, [user]);
 
@@ -106,11 +66,7 @@ export default function Reports() {
       const { data: practicals } = await supabase.from('batch_practicals').select('id, title, division, batch');
 
       // 2. Fetch All Submissions
-      const { data: submissions } = await supabase
-        .from('submissions')
-        .select(`
-          id, marks, status, practical_id, assignment_id, student_id
-        `);
+      const { data: submissions } = await supabase.from('submissions').select('id, marks, status, practical_id, assignment_id, student_id');
 
       const allSubmissions = submissions || [];
       const totalStudents = students?.length || 1;
@@ -137,7 +93,6 @@ export default function Reports() {
           
           const totalExpected = subAssignments.length * totalStudents;
           const actualCount = subSubs.length;
-          const subEvaluated = subSubs.filter(s => s.status === 'evaluated').length;
           const marks = subSubs.filter(s => s.marks).map(s => s.marks);
           const subAvg = marks.length > 0 ? marks.reduce((a:any, b:any) => a + b, 0) / marks.length : 0;
 
@@ -147,7 +102,6 @@ export default function Reports() {
             code: sub.code,
             assignmentCount: subAssignments.length,
             submissionRate: totalExpected > 0 ? Math.round((actualCount / totalExpected) * 100) : 0,
-            evaluationRate: actualCount > 0 ? Math.round((subEvaluated / actualCount) * 100) : 0,
             avgScore: Math.round(subAvg),
             risk: subAvg < 10 ? 'High' : 'Low'
           };
@@ -185,7 +139,6 @@ export default function Reports() {
             division: batch.division,
             batchCode: batch.batch,
             studentCount,
-            practicalCount: batchPracs.length,
             pracAvg,
             theoryAvg,
             consistency
@@ -217,7 +170,7 @@ export default function Reports() {
     return subjectPerformance;
   }, [filterMode, subjectPerformance]);
 
-  // --- CSV EXPORT LOGIC ---
+  // --- EXPORT LOGIC ---
   const handleExport = () => {
     let headers: string[] = [];
     let rows: any[] = [];
@@ -226,11 +179,11 @@ export default function Reports() {
     if (activeTab === 'batches') {
       headers = ["Batch Name", "Division", "Batch Code", "Student Count", "Practical Avg", "Theory Avg", "Consistency %"];
       rows = filteredBatches.map(b => [b.name, b.division, b.batchCode, b.studentCount, b.pracAvg, b.theoryAvg, b.consistency]);
-      filename = `Batch_Report_${new Date().toISOString().split('T')[0]}.csv`;
+      filename = `Batch_Report.csv`;
     } else {
-      headers = ["Subject Name", "Code", "Assignments", "Submission Rate %", "Eval Rate %", "Avg Score", "Risk Factor"];
-      rows = filteredSubjects.map(s => [s.name, s.code, s.assignmentCount, s.submissionRate, s.evaluationRate, s.avgScore, s.risk]);
-      filename = `Subject_Report_${new Date().toISOString().split('T')[0]}.csv`;
+      headers = ["Subject Name", "Code", "Assignments", "Submission Rate %", "Avg Score", "Risk Factor"];
+      rows = filteredSubjects.map(s => [s.name, s.code, s.assignmentCount, s.submissionRate, s.avgScore, s.risk]);
+      filename = `Subject_Report.csv`;
     }
 
     const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
@@ -242,10 +195,8 @@ export default function Reports() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success(`${filename} exported successfully!`);
+    toast.success(`${filename} exported!`);
   };
-
-  if (!user || user.role === 'student') return <div className="p-10 text-center">Access Denied</div>;
 
   if (loading) {
     return (
@@ -255,236 +206,77 @@ export default function Reports() {
     );
   }
 
+  // --- Only Admin/Teacher/HOD can see this ---
+  if (!user || user.role === 'student') return <div className="p-10 text-center font-bold text-lg">Access Denied</div>;
+
   return (
-    <div className="flex flex-col gap-8 pb-10 animate-in fade-in min-h-screen">
+    <div className="p-8 space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto pb-20">
       
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Performance Reports</h1>
-          <p className="text-muted-foreground mt-1">Deep dive into Subject and Batch-wise analytics.</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Analytics & Reports</h1>
+          <p className="text-muted-foreground mt-1">Deep dive into academic performance metrics.</p>
         </div>
         <div className="flex items-center gap-2">
           
-          {/* Dynamic Filter Dropdown */}
+          {/* Filter Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className={cn("hidden sm:flex border-border text-muted-foreground", filterMode !== 'all' && "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800")}>
+              <Button variant="outline" size="sm" className={cn("hidden sm:flex", filterMode !== 'all' && "bg-blue-50 text-blue-600 border-blue-200")}>
                  <Filter className="h-4 w-4 mr-2" /> 
-                 {filterMode === 'all' ? 'Filter View' : filterMode === 'risk' ? 'Risk View' : 'Top View'}
+                 {filterMode === 'all' ? 'Filter' : filterMode === 'risk' ? 'Risk View' : 'Top View'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Filter Data By</DropdownMenuLabel>
+              <DropdownMenuLabel>View Mode</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setFilterMode('all')}>
                  Show All
                  {filterMode === 'all' && <CheckCircle2 className="ml-auto h-4 w-4 text-primary" />}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFilterMode('risk')} className="text-red-600 focus:text-red-700">
-                 <AlertTriangle className="mr-2 h-4 w-4" /> At Risk / Low
-                 {filterMode === 'risk' && <CheckCircle2 className="ml-auto h-4 w-4 text-red-600" />}
+              <DropdownMenuItem onClick={() => setFilterMode('risk')} className="text-red-600">
+                 <AlertTriangle className="mr-2 h-4 w-4" /> At Risk
+                 {filterMode === 'risk' && <CheckCircle2 className="ml-auto h-4 w-4" />}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFilterMode('top')} className="text-green-600 focus:text-green-700">
+              <DropdownMenuItem onClick={() => setFilterMode('top')} className="text-green-600">
                  <TrendingUp className="mr-2 h-4 w-4" /> Top Performers
-                 {filterMode === 'top' && <CheckCircle2 className="ml-auto h-4 w-4 text-green-600" />}
+                 {filterMode === 'top' && <CheckCircle2 className="ml-auto h-4 w-4" />}
               </DropdownMenuItem>
               {filterMode !== 'all' && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setFilterMode('all')}>
-                    <X className="mr-2 h-4 w-4" /> Clear Filters
+                    <X className="mr-2 h-4 w-4" /> Clear
                   </DropdownMenuItem>
                 </>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Dynamic Export Button */}
-          <Button variant="outline" size="sm" className="border-border text-muted-foreground hover:bg-muted" onClick={handleExport}>
-             <Download className="h-4 w-4 mr-2" /> Export CSV
+          <Button variant="default" size="sm" onClick={handleExport}>
+             <Download className="h-4 w-4 mr-2" /> Export
           </Button>
         </div>
       </div>
 
-      {/* Top Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard 
-          title="Active Batches" 
-          value={batchPerformance.length} 
-          icon={Users} 
-          color="bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
-          trend="up"
-          trendLabel="Active"
-          delay={0.1}
-        />
-        <StatCard 
-          title="Total Submissions" 
-          value={stats.totalSubmissions} 
-          icon={BarChart3} 
-          color="bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400"
-          trend="up"
-          trendLabel="All time"
-          delay={0.2}
-        />
-        <StatCard 
-          title="Overall Avg" 
-          value={stats.avgScore} 
-          icon={CheckCircle2} 
-          color="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400"
-          trend="up"
-          trendLabel="Class Performance"
-          delay={0.3}
-        />
-        <StatCard 
-          title="Active Tasks" 
-          value={stats.totalTasks} 
-          icon={Beaker} 
-          color="bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400"
-          trend="up"
-          trendLabel="Theory + Labs"
-          delay={0.4}
-        />
-      </div>
+      {/* Top Stats Cards */}
+      <ReportStats stats={stats} />
 
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="batches" className="w-full" onValueChange={(val) => setActiveTab(val)}>
+      {/* Main Tabs */}
+      <Tabs defaultValue="batches" className="w-full" onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-2 max-w-[400px] mb-4">
-          <TabsTrigger value="batches">Batch Reports</TabsTrigger>
-          <TabsTrigger value="subjects">Subject Reports</TabsTrigger>
+          <TabsTrigger value="batches">Batch Performance</TabsTrigger>
+          <TabsTrigger value="subjects">Subject Analytics</TabsTrigger>
         </TabsList>
 
-        {/* --- BATCH REPORT TAB --- */}
-        <TabsContent value="batches" className="space-y-4 animate-in slide-in-from-bottom-2 duration-300">
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-card border border-border rounded-xl overflow-hidden shadow-sm"
-          >
-            <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-muted/30">
-              <h3 className="font-bold text-foreground flex items-center gap-2">
-                <LayoutGrid size={18} className="text-muted-foreground" /> Batch Performance 
-                {filterMode !== 'all' && <span className="text-xs font-normal text-muted-foreground bg-background border px-2 py-0.5 rounded-full capitalize">Filtered: {filterMode}</span>}
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-muted/50 text-muted-foreground font-medium border-b border-border">
-                  <tr>
-                    <th className="px-6 py-4">Batch Name</th>
-                    <th className="px-6 py-4 text-center">Students</th>
-                    <th className="px-6 py-4 text-center">Practical Avg</th>
-                    <th className="px-6 py-4 text-center">Theory Avg</th>
-                    <th className="px-6 py-4 w-1/4">Submission Consistency</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filteredBatches.length === 0 ? (
-                     <tr><td colSpan={5} className="text-center py-12 text-muted-foreground">No batches match the filter criteria.</td></tr>
-                  ) : (
-                    filteredBatches.map((row) => (
-                      <tr key={row.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="font-bold text-foreground">{row.name}</div>
-                          <div className="text-xs text-muted-foreground font-mono mt-0.5">Div {row.division} • Batch {row.batchCode}</div>
-                        </td>
-                        <td className="px-6 py-4 text-center font-medium">{row.studentCount}</td>
-                        <td className="px-6 py-4 text-center">
-                           <span className={cn("px-2 py-1 rounded text-xs font-bold", row.pracAvg >= 15 ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700")}>
-                             {row.pracAvg} / 20
-                           </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                           <span className={cn("px-2 py-1 rounded text-xs font-bold", row.theoryAvg >= 15 ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700")}>
-                             {row.theoryAvg} / 20
-                           </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col gap-1.5">
-                            <div className="flex justify-between text-xs font-medium">
-                              <span className="text-muted-foreground">{row.consistency}%</span>
-                            </div>
-                            <ProgressBar 
-                              value={row.consistency} 
-                              colorClass={row.consistency > 80 ? "bg-blue-500" : row.consistency > 50 ? "bg-amber-500" : "bg-red-500"} 
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </motion.div>
+        <TabsContent value="batches">
+          <BatchTable data={filteredBatches} />
         </TabsContent>
 
-        {/* --- SUBJECT REPORT TAB --- */}
-        <TabsContent value="subjects" className="space-y-4 animate-in slide-in-from-bottom-2 duration-300">
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-card border border-border rounded-xl overflow-hidden shadow-sm"
-          >
-            <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-muted/30">
-              <h3 className="font-bold text-foreground flex items-center gap-2">
-                <BookOpen size={18} className="text-muted-foreground" /> Subject Performance
-                {filterMode !== 'all' && <span className="text-xs font-normal text-muted-foreground bg-background border px-2 py-0.5 rounded-full capitalize">Filtered: {filterMode}</span>}
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-muted/50 text-muted-foreground font-medium border-b border-border">
-                  <tr>
-                    <th className="px-6 py-4 w-1/4">Subject Name</th>
-                    <th className="px-6 py-4 text-center">Assignments</th>
-                    <th className="px-6 py-4 w-1/6">Submission Rate</th>
-                    <th className="px-6 py-4 text-center">Avg. Score</th>
-                    <th className="px-6 py-4 text-center">Risk Factor</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filteredSubjects.length === 0 ? (
-                     <tr><td colSpan={5} className="text-center py-12 text-muted-foreground">No subjects match the filter criteria.</td></tr>
-                  ) : (
-                    filteredSubjects.map((row) => (
-                      <tr key={row.id} className="hover:bg-muted/30 transition-colors group">
-                        <td className="px-6 py-4">
-                          <div className="font-bold text-foreground group-hover:text-primary transition-colors">{row.name}</div>
-                          <div className="text-xs text-muted-foreground font-mono mt-0.5">{row.code}</div>
-                        </td>
-                        <td className="px-6 py-4 text-center font-medium text-foreground">{row.assignmentCount}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col gap-1.5">
-                            <div className="flex justify-between text-xs font-medium">
-                              <span className="text-muted-foreground">{row.submissionRate}%</span>
-                            </div>
-                            <ProgressBar value={row.submissionRate} colorClass={row.submissionRate > 80 ? "bg-blue-500" : "bg-amber-400"} />
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-block font-bold px-2 py-1 rounded text-xs bg-muted border border-border">
-                            {row.avgScore} / 20
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          {row.risk === 'High' ? (
-                            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-bold border border-red-100">
-                              <AlertTriangle size={12} /> High Risk
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">Normal</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </motion.div>
+        <TabsContent value="subjects">
+          <SubjectTable data={filteredSubjects} />
         </TabsContent>
-
       </Tabs>
     </div>
   );

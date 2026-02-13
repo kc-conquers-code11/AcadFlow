@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Calendar as CalendarIcon, Code2, FileText, Layers, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, Code2, FileText, Layers, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,9 +27,10 @@ interface CreateAssignmentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  initialValues?: any; // Fixed: Property now exists in interface
 }
 
-export function CreateAssignmentModal({ open, onOpenChange, onSuccess }: CreateAssignmentModalProps) {
+export function CreateAssignmentModal({ open, onOpenChange, onSuccess, initialValues }: CreateAssignmentModalProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -41,7 +42,7 @@ export function CreateAssignmentModal({ open, onOpenChange, onSuccess }: CreateA
   const [deadline, setDeadline] = useState('');
   const [submissionMode, setSubmissionMode] = useState('both');
   
-  // --- DYNAMIC RUBRICS STATE ---
+  // Rubrics State
   const [totalPoints, setTotalPoints] = useState<number>(20);
   const [rubrics, setRubrics] = useState<{id: number, criteria: string, max_marks: number}[]>([]);
 
@@ -50,58 +51,74 @@ export function CreateAssignmentModal({ open, onOpenChange, onSuccess }: CreateA
   const [selectedDivision, setSelectedDivision] = useState('');
   const [selectedBatch, setSelectedBatch] = useState('all');
 
-  // Fetch Subjects on Mount
+  // Fetch Subjects & Handle Initial Values (Edit Mode)
   useEffect(() => {
+    const fetchSubjects = async () => {
+      const { data } = await supabase.from('subjects').select('id, name, code');
+      setSubjects(data || []);
+    };
+
     if (open) {
-      const fetchSubjects = async () => {
-        const { data } = await supabase.from('subjects').select('id, name, code');
-        setSubjects(data || []);
-      };
       fetchSubjects();
       
-      // Reset All Fields
-      setSubjectId('');
-      setTitle('');
-      setDescription('');
-      setDeadline('');
-      setSubmissionMode('both');
-      setTargetType('all');
-      setSelectedDivision('');
-      setSelectedBatch('all');
-      setTotalPoints(20);
-      setRubrics([]); // Start with empty rubrics
-    }
-  }, [open]);
+      if (initialValues) {
+        // --- LOAD EXISTING DATA FOR EDITING ---
+        setSubjectId(initialValues.subject_id || '');
+        setTitle(initialValues.title || '');
+        setDescription(initialValues.description || '');
+        
+        if (initialValues.deadline) {
+          const date = new Date(initialValues.deadline);
+          const formattedDate = date.toISOString().slice(0, 16);
+          setDeadline(formattedDate);
+        }
 
-  // --- RUBRIC LOGIC ---
-  
-  // 1. Add New Row
+        setSubmissionMode(initialValues.submission_mode || 'both');
+        setTotalPoints(initialValues.total_points || 20);
+        setRubrics(initialValues.rubrics || []);
+
+        if (initialValues.target_division) {
+          setTargetType('division');
+          setSelectedDivision(initialValues.target_division);
+          setSelectedBatch(initialValues.target_batch || 'all');
+        } else {
+          setTargetType('all');
+        }
+      } else {
+        // --- RESET FOR NEW ASSIGNMENT ---
+        setSubjectId('');
+        setTitle('');
+        setDescription('');
+        setDeadline('');
+        setSubmissionMode('both');
+        setTargetType('all');
+        setSelectedDivision('');
+        setSelectedBatch('all');
+        setTotalPoints(20);
+        setRubrics([]);
+      }
+    }
+  }, [open, initialValues]);
+
   const addRubric = () => {
     setRubrics([...rubrics, { id: Date.now(), criteria: '', max_marks: 5 }]);
-    // Optional: Add 5 to total points automatically
     setTotalPoints(prev => prev + 5);
   };
 
-  // 2. Remove Row
   const removeRubric = (id: number) => {
     const rubricToRemove = rubrics.find(r => r.id === id);
     setRubrics(rubrics.filter(r => r.id !== id));
-    
-    // Deduct marks from total
     if (rubricToRemove) {
       setTotalPoints(prev => Math.max(0, prev - rubricToRemove.max_marks));
     }
   };
 
-  // 3. Update Row & Recalculate Total
   const updateRubric = (id: number, field: 'criteria' | 'max_marks', value: any) => {
     const newRubrics = rubrics.map(r => {
       if (r.id === id) return { ...r, [field]: value };
       return r;
     });
     setRubrics(newRubrics);
-
-    // Auto-update Total Points if marks changed
     if (field === 'max_marks') {
       const sum = newRubrics.reduce((acc, curr) => acc + (Number(curr.max_marks) || 0), 0);
       setTotalPoints(sum);
@@ -119,31 +136,39 @@ export function CreateAssignmentModal({ open, onOpenChange, onSuccess }: CreateA
       const targetDivision = targetType === 'division' ? selectedDivision : null;
       const targetBatch = (targetType === 'division' && selectedBatch !== 'all') ? selectedBatch : null;
 
-      const { error } = await supabase.from('assignments').insert([
-        {
-          title,
-          description,
-          subject_id: subjectId,
-          deadline: new Date(deadline).toISOString(),
-          created_by: user?.id,
-          target_division: targetDivision,
-          target_batch: targetBatch,
-          submission_mode: submissionMode,
-          type: 'theory',
-          total_points: totalPoints,
-          rubrics: rubrics.length > 0 ? rubrics : null // Save dynamic rubrics
-        }
-      ]);
+      const payload = {
+        title,
+        description,
+        subject_id: subjectId,
+        deadline: new Date(deadline).toISOString(),
+        created_by: user?.id,
+        target_division: targetDivision,
+        target_batch: targetBatch,
+        submission_mode: submissionMode,
+        type: 'theory',
+        total_points: totalPoints,
+        rubrics: rubrics.length > 0 ? rubrics : null
+      };
+
+      let error;
+      if (initialValues?.id) {
+        // UPDATE EXISTING
+        const { error: err } = await supabase.from('assignments').update(payload).eq('id', initialValues.id);
+        error = err;
+      } else {
+        // INSERT NEW
+        const { error: err } = await supabase.from('assignments').insert([payload]);
+        error = err;
+      }
 
       if (error) throw error;
 
-      toast.success("Assignment Created Successfully");
+      toast.success(initialValues ? "Assignment Updated" : "Assignment Created");
       onSuccess();
       onOpenChange(false);
-
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error("Failed to create assignment");
+      toast.error(err.message || "Failed to save assignment");
     } finally {
       setLoading(false);
     }
@@ -151,23 +176,18 @@ export function CreateAssignmentModal({ open, onOpenChange, onSuccess }: CreateA
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* Scroll fix: max-h-[90vh] ensures modal fits in screen */}
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 gap-0 bg-white dark:bg-slate-950">
-        
-        <DialogHeader className="px-6 py-4 border-b shrink-0">
-          <DialogTitle>Create New Assignment</DialogTitle>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 gap-0 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-2xl">
+        <DialogHeader className="px-6 py-4 border-b shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
+          <DialogTitle>{initialValues ? 'Edit Assignment' : 'Create New Assignment'}</DialogTitle>
         </DialogHeader>
         
-        {/* Scrollable Area */}
         <ScrollArea className="flex-1 px-6 py-4 overflow-y-auto">
-          <div className="space-y-6">
-            
-            {/* Subject & Title */}
+          <div className="space-y-6 pb-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Subject <span className="text-red-500">*</span></Label>
+                <Label className="text-xs font-bold uppercase text-slate-500">Subject *</Label>
                 <Select onValueChange={setSubjectId} value={subjectId}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select Subject" />
                   </SelectTrigger>
                   <SelectContent>
@@ -181,140 +201,132 @@ export function CreateAssignmentModal({ open, onOpenChange, onSuccess }: CreateA
               </div>
 
               <div className="space-y-2">
-                <Label>Deadline <span className="text-red-500">*</span></Label>
+                <Label className="text-xs font-bold uppercase text-slate-500">Deadline *</Label>
                 <div className="relative">
                   <Input 
                     type="datetime-local" 
                     value={deadline}
                     onChange={(e) => setDeadline(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 h-10"
                   />
-                  <CalendarIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Assignment Title <span className="text-red-500">*</span></Label>
+              <Label className="text-xs font-bold uppercase text-slate-500">Assignment Title *</Label>
               <Input 
-                placeholder="e.g. Module 1: Introduction to DSA" 
+                placeholder="e.g. Logic Building & Flowcharts" 
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                className="h-10"
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Instructions</Label>
+              <Label className="text-xs font-bold uppercase text-slate-500">Instructions</Label>
               <Textarea 
-                placeholder="Enter details or questions..." 
-                className="h-24 resize-none"
+                placeholder="Briefly explain what needs to be done..." 
+                className="h-24 resize-none bg-slate-50/50 dark:bg-slate-900/50"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
 
-            {/* Targeting & Mode */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
-               {/* Targeting */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
                <div className="space-y-3">
-                  <Label className="text-xs font-bold uppercase text-slate-500">Target Audience</Label>
+                  <Label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Target Audience</Label>
                   <Select value={targetType} onValueChange={setTargetType}>
-                    <SelectTrigger className="h-8 text-sm">
+                    <SelectTrigger className="h-9 bg-white dark:bg-slate-950">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Divisions</SelectItem>
-                      <SelectItem value="division">Specific Division</SelectItem>
+                      <SelectItem value="all">Entire Course (All Divs)</SelectItem>
+                      <SelectItem value="division">Specific Division/Batch</SelectItem>
                     </SelectContent>
                   </Select>
 
                   {targetType === 'division' && (
-                    <div className="grid grid-cols-2 gap-2 animate-in fade-in slide-in-from-left-1">
+                    <div className="grid grid-cols-2 gap-2 animate-in slide-in-from-top-1">
                       <Select value={selectedDivision} onValueChange={setSelectedDivision}>
-                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Div" /></SelectTrigger>
+                        <SelectTrigger className="h-9 bg-white dark:bg-slate-950"><SelectValue placeholder="Div" /></SelectTrigger>
                         <SelectContent>{['A', 'B'].map(d => <SelectItem key={d} value={d}>Div {d}</SelectItem>)}</SelectContent>
                       </Select>
-                      
-                      {selectedDivision && (
-                        <Select value={selectedBatch} onValueChange={setSelectedBatch}>
-                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Batch" /></SelectTrigger>
-                          <SelectContent>
-                             <SelectItem value="all">All</SelectItem>
-                             {['A', 'B', 'C'].map(b => <SelectItem key={b} value={`${selectedDivision}${b}`}>Batch {selectedDivision}{b}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      )}
+                      <Select value={selectedBatch} onValueChange={setSelectedBatch}>
+                        <SelectTrigger className="h-9 bg-white dark:bg-slate-950"><SelectValue placeholder="Batch" /></SelectTrigger>
+                        <SelectContent>
+                           <SelectItem value="all">All Batches</SelectItem>
+                           {['A', 'B', 'C'].map(b => <SelectItem key={b} value={`${selectedDivision}${b}`}>Batch {selectedDivision}{b}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                </div>
 
-               {/* Submission Mode */}
                <div className="space-y-3">
-                  <Label className="text-xs font-bold uppercase text-slate-500">Submission Mode</Label>
-                  <div className="flex bg-white dark:bg-slate-950 rounded border p-1 gap-1">
+                  <Label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Submission Mode</Label>
+                  <div className="flex bg-white dark:bg-slate-950 rounded-lg border p-1 gap-1">
                     {['text', 'code', 'both'].map((mode) => (
                       <button
                         key={mode}
                         type="button"
                         onClick={() => setSubmissionMode(mode)}
-                        className={`flex-1 flex items-center justify-center py-1.5 rounded text-[10px] font-medium transition-all ${
+                        className={`flex-1 flex flex-col items-center justify-center py-2 rounded-md transition-all ${
                           submissionMode === mode 
-                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' 
-                            : 'text-slate-500 hover:bg-slate-100'
+                            ? 'bg-blue-600 text-white shadow-sm' 
+                            : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
-                        {mode === 'text' && <FileText size={14} className="mr-1"/>}
-                        {mode === 'code' && <Code2 size={14} className="mr-1"/>}
-                        {mode === 'both' && <Layers size={14} className="mr-1"/>}
-                        <span className="capitalize">{mode}</span>
+                        {mode === 'text' && <FileText size={14}/>}
+                        {mode === 'code' && <Code2 size={14}/>}
+                        {mode === 'both' && <Layers size={14}/>}
+                        <span className="text-[9px] uppercase mt-1 font-bold">{mode}</span>
                       </button>
                     ))}
                   </div>
                </div>
             </div>
 
-            {/* --- DYNAMIC RUBRICS SECTION --- */}
-            <div className="space-y-4 pt-2 border-t">
+            <div className="space-y-4 pt-4 border-t">
                <div className="flex items-center justify-between">
-                  <Label className="text-base font-semibold">Grading Rubric</Label>
                   <div className="flex items-center gap-2">
-                    <Label className="text-sm">Total Points:</Label>
-                    <Input 
-                      type="number" 
-                      className="w-20 h-8 font-bold text-center" 
-                      value={totalPoints}
-                      onChange={(e) => setTotalPoints(Number(e.target.value))}
-                    />
+                    <div className="bg-blue-100 dark:bg-blue-900/30 p-1.5 rounded-lg"><Layers size={16} className="text-blue-600"/></div>
+                    <Label className="text-sm font-bold">Grading Rubrics</Label>
+                  </div>
+                  <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
+                    <Label className="text-[10px] font-bold uppercase text-slate-500">Total Marks:</Label>
+                    <span className="text-sm font-black text-blue-600">{totalPoints}</span>
                   </div>
                </div>
-                
-               {/* Rubric List */}
+               
                <div className="space-y-3">
                   {rubrics.map((r, index) => (
-                    <div key={r.id} className="flex gap-2 items-center animate-in slide-in-from-left-2">
-                       <span className="text-xs font-mono text-slate-400 w-4">{index + 1}.</span>
-                       
-                       <Input 
-                         placeholder="Criteria (e.g. Logic / Clean Code)" 
-                         value={r.criteria}
-                         onChange={(e) => updateRubric(r.id, 'criteria', e.target.value)}
-                         className="flex-1 h-9 text-sm"
-                       />
+                    <div key={r.id} className="flex gap-2 items-center group animate-in slide-in-from-left-2">
+                       <div className="flex-1 relative">
+                        <Input 
+                          placeholder="e.g. Code Efficiency" 
+                          value={r.criteria}
+                          onChange={(e) => updateRubric(r.id, 'criteria', e.target.value)}
+                          className="h-10 text-sm bg-transparent"
+                        />
+                        <span className="absolute -left-6 top-3 text-[10px] font-mono text-slate-300">{index + 1}</span>
+                       </div>
                        
                        <div className="relative w-20">
                          <Input 
                            type="number"
                            value={r.max_marks}
                            onChange={(e) => updateRubric(r.id, 'max_marks', Number(e.target.value))}
-                           className="h-9 text-sm pr-6" // Space for 'pts'
+                           className="h-10 text-sm pr-7 text-center font-bold"
                          />
-                         <span className="absolute right-2 top-2.5 text-[10px] text-slate-400">pts</span>
+                         <span className="absolute right-2 top-3 text-[10px] font-bold text-slate-400">pts</span>
                        </div>
 
                        <Button 
                          variant="ghost" 
                          size="icon" 
-                         className="h-9 w-9 text-slate-400 hover:text-red-500 hover:bg-red-50" 
+                         className="h-10 w-10 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" 
                          onClick={() => removeRubric(r.id)}
                        >
                           <Trash2 size={16} />
@@ -325,23 +337,21 @@ export function CreateAssignmentModal({ open, onOpenChange, onSuccess }: CreateA
                   <Button 
                     type="button" 
                     variant="outline" 
-                    size="sm" 
                     onClick={addRubric} 
-                    className="w-full border-dashed text-slate-500 hover:text-blue-600 hover:border-blue-200"
+                    className="w-full border-dashed border-2 h-10 text-slate-500 hover:text-blue-600 hover:border-blue-400 bg-transparent"
                   >
                      <Plus size={14} className="mr-2" /> Add Criteria
                   </Button>
                </div>
             </div>
-
           </div>
         </ScrollArea>
 
-        <DialogFooter className="px-6 py-4 border-t shrink-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Create Assignment
+        <DialogFooter className="px-6 py-4 border-t shrink-0 bg-slate-50 dark:bg-slate-900/50">
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Discard</Button>
+          <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white min-w-[140px]">
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4"/>}
+            {initialValues ? 'Update Assignment' : 'Post Assignment'}
           </Button>
         </DialogFooter>
       </DialogContent>

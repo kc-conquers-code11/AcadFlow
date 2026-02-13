@@ -41,39 +41,39 @@ export function BatchAnalytics({ batchId, totalPracticals }: BatchAnalyticsProps
       const { data: batchDetails, error: bErr } = await supabase.from('batches').select('*').eq('id', batchId).single();
       if (bErr) throw bErr;
 
-      // 2. Get All Students (Profiles)
-      const { data: allStudents, error: sErr } = await supabase
-        .from('profiles')
-        .select('id, name, enrollment_number, email')
-        .eq('batch', batchDetails.batch)
-        .eq('division', batchDetails.division)
-        .eq('role', 'student')
-        .order('enrollment_number', { ascending: true });
+      // 2. Get Students assigned to this batch
+      const { data: batchStudents, error: sErr } = await supabase
+        .from('batch_students')
+        .select('student_id, profiles:student_id(*)')
+        .eq('batch_id', batchId);
 
       if (sErr) throw sErr;
-      if (!allStudents || allStudents.length === 0) {
+      
+      const allStudents = batchStudents?.map((bs: any) => bs.profiles).filter(Boolean) || [];
+
+      if (allStudents.length === 0) {
         setStudents([]);
         setLoading(false);
         return;
       }
 
-      // 3. Get Practical IDs for this batch (FIXED: Using division/batch logic)
+      // 3. Get Practical IDs for this batch
       const { data: batchPracs } = await supabase
         .from('batch_practicals')
         .select('id')
-        .eq('division', batchDetails.division) // FIX: Match Division
-        .eq('batch', batchDetails.batch);      // FIX: Match Batch
+        .eq('division', batchDetails.division)
+        .eq('batch', batchDetails.batch)
+        .neq('status', 'archived');
       
       const pracIds = batchPracs?.map(p => p.id) || [];
 
-      // 4. Get Submissions (Fetch Submitted/Evaluated)
+      // 4. Get Submissions
       let submissions: any[] = [];
       if (pracIds.length > 0) {
         const { data: subs } = await supabase
           .from('submissions')
           .select('student_id, practical_id, marks, status')
           .in('practical_id', pracIds)
-          // We count both submitted and evaluated as "Done" for progress
           .in('status', ['submitted', 'evaluated']); 
         
         submissions = subs || [];
@@ -91,7 +91,7 @@ export function BatchAnalytics({ batchId, totalPracticals }: BatchAnalyticsProps
         
         // Logic: 100% means Completed
         const isCompleted = submittedCount === totalPracticals && totalPracticals > 0;
-        // Logic: Less than 50% means Defaulter (Customize as needed)
+        // Logic: Less than 50% means Defaulter
         const isDefaulter = progress < 50; 
         const pending = totalPracticals - submittedCount;
 
@@ -105,6 +105,9 @@ export function BatchAnalytics({ batchId, totalPracticals }: BatchAnalyticsProps
           pending
         };
       });
+
+      // Sort by Enrollment Number
+      analyticsData.sort((a, b) => (a.enrollment_number || '').localeCompare(b.enrollment_number || ''));
 
       setStudents(analyticsData);
 
@@ -138,8 +141,9 @@ export function BatchAnalytics({ batchId, totalPracticals }: BatchAnalyticsProps
   };
 
   const filteredData = students.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || 
+    const matchesSearch = (s.name || '').toLowerCase().includes(search.toLowerCase()) || 
                           (s.enrollment_number || '').toLowerCase().includes(search.toLowerCase());
+    
     if (filter === 'defaulters') return matchesSearch && s.isDefaulter;
     if (filter === 'completed') return matchesSearch && s.isCompleted;
     return matchesSearch;
@@ -218,7 +222,7 @@ export function BatchAnalytics({ batchId, totalPracticals }: BatchAnalyticsProps
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
-               <TableHead className="font-bold w-24">Roll No</TableHead>
+               <TableHead className="font-bold w-32">Enrollment</TableHead>
                <TableHead className="font-bold">Name</TableHead>
                <TableHead className="w-48 font-bold">Progress</TableHead>
                <TableHead className="text-center font-bold">Submitted</TableHead>
@@ -237,18 +241,18 @@ export function BatchAnalytics({ batchId, totalPracticals }: BatchAnalyticsProps
                   <TableCell className="font-medium text-foreground">{student.name}</TableCell>
                   
                   <TableCell>
-                     <div className="flex items-center gap-2">
-                       <div className="h-2 flex-1 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full transition-all duration-500 ${
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 flex-1 bg-muted rounded-full overflow-hidden">
+                           <div 
+                             className={`h-full transition-all duration-500 ${
                                student.progress === 100 ? 'bg-green-500' : 
                                student.progress < 50 ? 'bg-red-500' : 'bg-yellow-500'
-                            }`} 
-                            style={{ width: `${student.progress}%` }}
-                          />
-                       </div>
-                       <span className="text-xs text-muted-foreground font-mono w-9 text-right">{Math.round(student.progress)}%</span>
-                     </div>
+                             }`} 
+                             style={{ width: `${student.progress}%` }}
+                           />
+                        </div>
+                        <span className="text-xs text-muted-foreground font-mono w-9 text-right">{Math.round(student.progress)}%</span>
+                      </div>
                   </TableCell>
 
                   <TableCell className="text-center font-bold text-foreground">

@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import RotatingText from '@/components/ui/rotating-text';
 import {
   GraduationCap,
@@ -10,9 +12,6 @@ import {
   BookOpen,
   ShieldCheck,
   Microscope,
-  User,
-  Mail,
-  Lock,
   Loader2,
   Sun,
   Moon,
@@ -22,8 +21,6 @@ import {
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Tooltip,
   TooltipContent,
@@ -37,13 +34,12 @@ const GridPattern = () => (
   <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.2]" />
 );
 
-
-const FloatingBadge = ({ icon: Icon, label, delay }: any) => (
+const FloatingBadge = ({ icon: Icon, label, delay }: { icon: any, label: string, delay: number }) => (
   <motion.div
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay, duration: 0.5 }}
-    className="flex items-center gap-2 px-3 py-1.5 bg-card/80 bg-background backdrop-blur-sm border border-border/50 rounded-full shadow-sm text-xs font-medium text-muted-foreground"
+    className="flex items-center gap-2 px-3 py-1.5 bg-card/80 backdrop-blur-sm border border-border/50 rounded-full shadow-sm text-xs font-medium text-muted-foreground"
   >
     <Icon size={14} className="text-primary" />
     {label}
@@ -51,31 +47,60 @@ const FloatingBadge = ({ icon: Icon, label, delay }: any) => (
 );
 
 export default function Login() {
+  const PROFILE = "https://www.linkedin.com/in/kc-thedev"; 
+
+  // --- State Management ---
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [role, setRole] = useState<'student' | 'teacher'>('student');
+  const [division, setDivision] = useState<'A' | 'B'>('A');
+  const [batch, setBatch] = useState<'A' | 'B' | 'C'>('A');
+  
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login } = useAuth();
+  // Hooks
+  const { login, signup } = useAuth();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+
+  // --- Handlers ---
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(async () => {
-      try {
-        const { error } = await login(email, password);
-        if (error) throw error;
 
+    try {
+      if (isLogin) {
+        const { data, error } = await login(email, password);
+        if (error) throw error;
         toast.success("Welcome back!");
+        
+        // CHECK IF USER IS ADMIN AND REDIRECT
+        if (data.user?.user_metadata?.role === 'admin') {
+            navigate('/admin');
+        } else {
+            navigate('/dashboard');
+        }
+
+      } else {
+        if (!name.trim()) throw new Error("Name is required");
+        const divToSend = role === 'student' ? division : undefined;
+        const batchToSend = role === 'student' ? batch : undefined;
+        
+        const { error } = await signup(email, password, name, role, divToSend, batchToSend);
+        if (error) throw error;
+        toast.success("Account created! Welcome to AcadFlow.");
         navigate('/dashboard');
-      } catch (error: any) {
-        toast.error(error.message || "An error occurred");
-      } finally {
-        setIsLoading(false);
       }
-    }, 1000);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Authentication failed");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -87,67 +112,41 @@ export default function Login() {
         style={{
           backgroundImage: `radial-gradient(125% 125% at 50% 10%, var(--background) 40%, var(--primary) 100%)`,
           backgroundSize: "100% 100%",
-          opacity: 1
+          opacity: 0.8 
         }}
       />
 
       {/* Navigation / Header */}
       <nav className="w-full max-w-7xl mx-auto p-6 flex items-center justify-between relative z-10">
-        <div className="flex items-center gap-1">
-          <img src="/images/logo.png" alt="AcadFlow" className="h-20 md:h-24 w-auto object-contain" />
-          <span className="font-bold text-2xl md:text-3xl tracking-tight font-display">
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-9 bg-primary text-primary-foreground rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
+            <GraduationCap size={20} strokeWidth={2.5} />
+          </div>
+          <span className="font-bold text-2xl tracking-tight font-display">
             <span className="text-primary">Acad</span>
             <span className="text-foreground">Flow</span>
           </span>
         </div>
         <div className="hidden md:flex gap-6 text-sm font-medium text-muted-foreground items-center">
           <button
-            onClick={(e) => {
-              const newTheme = theme === "dark" ? "light" : "dark";
-
-              // @ts-ignore
-              if (!document.startViewTransition) {
-                setTheme(newTheme);
-                return;
-              }
-
-              const x = e.clientX;
-              const y = e.clientY;
-              const right = window.innerWidth - x;
-              const bottom = window.innerHeight - y;
-              const maxRadius = Math.hypot(
-                Math.max(x, right),
-                Math.max(y, bottom)
-              );
-
-              // @ts-ignore
-              const transition = document.startViewTransition(() => {
-                setTheme(newTheme);
-              });
-
-              transition.ready.then(() => {
-                document.documentElement.animate(
-                  {
-                    clipPath: [
-                      `circle(0px at ${x}px ${y}px)`,
-                      `circle(${maxRadius}px at ${x}px ${y}px)`,
-                    ],
-                  },
-                  {
-                    duration: 500,
-                    easing: 'ease-in-out',
-                    pseudoElement: '::view-transition-new(root)',
-                  }
-                );
-              });
-            }}
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className="p-2 rounded-full hover:bg-muted transition-colors text-foreground"
             aria-label="Toggle Theme"
           >
             {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
           </button>
-          <span className="cursor-pointer hover:text-foreground transition-colors">Documentation</span>
-          <span className="cursor-pointer hover:text-foreground transition-colors">Support</span>
+          <span 
+            className="cursor-pointer hover:text-foreground transition-colors"
+            onClick={() => navigate('/privacy')}
+          >
+            Documentation
+          </span>
+          <span 
+            className="cursor-pointer hover:text-foreground transition-colors"
+            onClick={() => navigate('/support')}
+          >
+            Support
+          </span>
         </div>
       </nav>
 
@@ -163,17 +162,17 @@ export default function Login() {
               className="text-5xl md:text-6xl z-20 font-bold tracking-tight text-foreground leading-[1.1] font-serif"
             >
               Academic rigour <br />
-              <span className="text-primary italic flex items-center sm:ml-10 lg:ml-0 gap-2">
+              <span className="text-primary italic flex items-center justify-center md:justify-start gap-2 flex-wrap">
                 meets
                 <RotatingText
                   texts={['modern', 'simple', 'powerful']}
-                  mainClassName="text-primary overflow-hidden py-2 sm:py-4 justify-center rounded-lg inline-flex items-center leading-normal font-display"
+                  mainClassName="text-primary overflow-hidden py-0 sm:py-2 justify-center rounded-lg inline-flex items-center leading-normal font-display"
                   staggerFrom="first"
                   initial={{ y: "100%" }}
                   animate={{ y: 0 }}
                   exit={{ y: "-120%" }}
                   staggerDuration={0.025}
-                  splitLevelClassName="overflow-hidden pb-2 px-3 sm:pb-4 pt-1 sm:pt-2"
+                  splitLevelClassName="overflow-hidden pb-2 px-2 sm:pb-4 pt-1 sm:pt-2"
                   transition={{ type: "spring", damping: 30, stiffness: 400 }}
                   rotationInterval={3000}
                 />
@@ -198,27 +197,48 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Right: The "Ceramic" Form Card */}
+        {/* Right: Form Card */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.4 }}
           className="w-full max-w-[420px] relative group"
         >
-          {/* Subtle Shadow Layer */}
           <div className="absolute -inset-0.5 bg-gradient-to-b from-border/50 to-transparent rounded-2xl blur opacity-50 group-hover:opacity-100 transition duration-500" />
 
-          <div className="relative bg-card rounded-xl shadow-xl shadow-shadow/5 p-8 border border-border">
+          <div className="relative bg-card rounded-xl shadow-xl p-8 border border-border">
             <div className="mb-8">
               <h2 className="text-xl font-bold text-card-foreground">
-                Sign in
+                {isLogin ? "Sign in" : "Create Account"}
               </h2>
               <p className="text-muted-foreground text-sm mt-1">
-                Computer Engineering Department
+                 {isLogin ? "Computer Engineering Department" : "Join the academic portal"}
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
+              <AnimatePresence>
+                {!isLogin && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+                    animate={{ height: 'auto', opacity: 1, marginBottom: 20 }}
+                    exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="space-y-2">
+                        <Label htmlFor="name">Full Name</Label>
+                        <Input
+                            id="name"
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            required={!isLogin}
+                            placeholder="John Doe"
+                        />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <div className="space-y-2">
                 <Label htmlFor="email">Institutional Email</Label>
@@ -226,7 +246,7 @@ export default function Login() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e: any) => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                   placeholder="username@pvppcoe.ac.in"
                 />
@@ -239,7 +259,7 @@ export default function Login() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(e: any) => setPassword(e.target.value)}
+                    onChange={(e) => setPassword(e.target.value)}
                     required
                     placeholder="********"
                   />
@@ -253,38 +273,116 @@ export default function Login() {
                 </div>
               </div>
 
+              {!isLogin && (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs font-bold text-muted-foreground uppercase mb-2 tracking-wider">Select Role</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['student', 'teacher'] as const).map((r) => (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setRole(r)}
+                          className={cn(
+                            "py-2 text-sm font-medium rounded-lg border transition-all capitalize",
+                            role === r ? "bg-primary/10 border-primary text-primary" : "bg-card border-border text-muted-foreground hover:bg-muted"
+                          )}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
+                  {role === 'student' && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs font-bold text-muted-foreground uppercase mb-2 tracking-wider">Division</p>
+                        <div className="flex gap-2">
+                          {(['A', 'B'] as const).map((d) => (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() => setDivision(d)}
+                              className={cn(
+                                "flex-1 py-2 text-sm font-bold rounded-lg border transition-all",
+                                division === d ? "bg-primary/10 border-primary text-primary" : "bg-card border-border text-muted-foreground hover:bg-muted"
+                              )}
+                            >
+                              {d}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-muted-foreground uppercase mb-2 tracking-wider">Batch</p>
+                        <div className="flex gap-2">
+                          {(['A', 'B', 'C'] as const).map((b) => (
+                            <button
+                              key={b}
+                              type="button"
+                              onClick={() => setBatch(b)}
+                              className={cn(
+                                "flex-1 py-2 text-sm font-bold rounded-lg border transition-all",
+                                batch === b ? "bg-primary/10 border-primary text-primary" : "bg-card border-border text-muted-foreground hover:bg-muted"
+                              )}
+                            >
+                              {b}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
-              <div className="flex items-center justify-between text-xs">
-                <a href="#" className="font-semibold text-primary hover:text-primary/80">Forgot password?</a>
-              </div>
+              {isLogin && (
+                <div className="flex items-center justify-between text-xs">
+                  <label className="flex items-center gap-2 cursor-pointer text-muted-foreground hover:text-foreground">
+                    <input type="checkbox" className="rounded border-border text-primary" />
+                    Remember device
+                  </label>
+                  <a href="#" className="font-semibold text-primary hover:text-primary/80">Forgot credentials?</a>
+                </div>
+              )}
 
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-all hover:shadow-lg hover:shadow-primary/20 flex items-center justify-center gap-2 group/btn"
+                className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg shadow-primary/20 flex items-center justify-center gap-2 group/btn"
               >
-                {isLoading ? "Authenticating..." : (
-                  <>
-                    Access Portal
-                    <ArrowRight size={16} className="group-hover/btn:translate-x-0.5 transition-transform" />
-                  </>
+                {isLoading ? (
+                  <><Loader2 size={16} className="animate-spin" /> Processing...</>
+                ) : (
+                  <>{isLogin ? "Access Portal" : "Create Account"} <ArrowRight size={16} className="group-hover/btn:translate-x-0.5 transition-transform" /></>
                 )}
               </Button>
             </form>
+
+            <div className="mt-8 pt-6 border-t border-border text-center">
+              <p className="text-sm text-muted-foreground">
+                {isLogin ? "First time here? " : "Already registered? "}
+                <button
+                  type="button"
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="font-semibold text-primary hover:text-primary/80 transition-colors"
+                >
+                  {isLogin ? "Create an account" : "Sign in"}
+                </button>
+              </p>
+            </div>
           </div>
 
-
-          {/* Decorative Security Seal */}
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="absolute -right-2 -bottom-2 md:-right-4 md:-bottom-4 flex h-10 w-10 md:h-12 md:w-12 bg-card rounded-full shadow-lg items-center justify-center border border-border cursor-pointer transition-transform hover:scale-105 z-50">
-                  <ShieldCheck className="w-5 h-5 md:w-5 md:h-5 text-primary" />
+                  <ShieldCheck className="w-5 h-5 md:w-5 md:h-5 text-emerald-500" />
                 </div>
               </TooltipTrigger>
               <TooltipContent side="bottom" sideOffset={5}>
-                <p>Secured by Supabase</p>
+                <p>Secured by AcadFlow</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -294,9 +392,14 @@ export default function Login() {
 
       {/* Footer */}
       <footer className="w-full p-6 text-center text-xs text-muted-foreground font-medium relative z-10">
-        &copy; 2026 PVPP College of Engineering. All rights reserved. • Privacy Policy
+        &copy; 2026 PVPP College of Engineering. All rights reserved - Powered by{' '}
+        <span 
+          className="text-primary cursor-pointer hover:underline underline-offset-2 transition-all font-bold"
+          onClick={() => window.open(PROFILE, '_blank')}
+        >
+          EDUSync
+        </span>
       </footer>
     </div>
   );
 }
-

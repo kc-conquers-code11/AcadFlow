@@ -34,7 +34,8 @@ import {
   LogIn,
   GraduationCap,
   Calendar,
-  Layers
+  Layers,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -50,11 +51,11 @@ export default function Batches() {
   // Form State
   const [formData, setFormData] = useState({
     name: '',
-    academicYear: '2024-25',
+    academicYear: '2025-26',
     year: '2',
     division: 'A',
     batch: 'A', // New Field
-    semester: '3'
+    semester: '4'
   });
 
   // Join Batch State
@@ -194,6 +195,25 @@ export default function Batches() {
       toast.error("Failed to join batch");
     } finally {
       setJoining(false);
+    }
+  };
+
+  const handleDeleteBatch = async (batchId: string) => {
+    if (!confirm("Are you sure you want to delete this batch? All associated data will be removed.")) return;
+
+    try {
+      const { error } = await supabase
+        .from('batches')
+        .delete()
+        .eq('id', batchId);
+
+      if (error) throw error;
+
+      toast.success("Batch deleted successfully");
+      setBatches(prev => prev.filter(b => b.id !== batchId));
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete batch");
     }
   };
 
@@ -418,15 +438,26 @@ export default function Batches() {
                       </div>
                       
                       {user.role !== 'student' && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-muted-foreground hover:text-blue-600"
-                          onClick={(e) => { e.preventDefault(); copyToClipboard(batch.code); }}
-                          title="Copy Code"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
+                        <div className="flex flex-col gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-muted-foreground hover:text-blue-600"
+                            onClick={(e) => { e.preventDefault(); copyToClipboard(batch.code); }}
+                            title="Copy Code"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50"
+                            onClick={(e) => { e.preventDefault(); handleDeleteBatch(batch.id); }}
+                            title="Delete Batch"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </CardHeader>
@@ -434,10 +465,10 @@ export default function Batches() {
                   <CardContent className="flex-1">
                     <div className="space-y-3 mt-2">
                       {user.role === 'student' ? (
-                         <div className="flex items-center text-sm text-muted-foreground">
-                           <Users className="mr-2 h-4 w-4 opacity-70" />
-                           <span>Instructor: {batch.instructor_name || 'Faculty'}</span>
-                         </div>
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <Users className="mr-2 h-4 w-4 opacity-70" />
+                            <span>Instructor: {batch.instructor_name || 'Faculty'}</span>
+                          </div>
                       ) : (
                         <div className="flex items-center text-sm text-muted-foreground">
                           <Users className="mr-2 h-4 w-4 opacity-70" />
