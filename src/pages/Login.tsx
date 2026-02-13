@@ -16,7 +16,8 @@ import {
   Sun,
   Moon,
   Eye,
-  EyeOff
+  EyeOff,
+  Lock
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -44,6 +45,13 @@ const FloatingBadge = ({ icon: Icon, label, delay }: { icon: any, label: string,
     <Icon size={14} className="text-primary" />
     {label}
   </motion.div>
+);
+
+// High-Fidelity Cloudflare Logo
+const CloudflareLogo = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
+    <path d="M19.32 8.87c.13-.77.2-1.56.2-2.37 0-4.14-3.36-7.5-7.5-7.5-3.3 0-6.11 2.14-7.14 5.1C2.12 4.9 0 7.17 0 10c0 3.03 2.47 5.5 5.5 5.5h13.5c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.68-4.96z" />
+  </svg>
 );
 
 export default function Login() {
@@ -374,15 +382,52 @@ export default function Login() {
             </div>
           </div>
 
+          {/* THE "BHARI" SECURITY BADGE */}
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="absolute -right-2 -bottom-2 md:-right-4 md:-bottom-4 flex h-10 w-10 md:h-12 md:w-12 bg-card rounded-full shadow-lg items-center justify-center border border-border cursor-pointer transition-transform hover:scale-105 z-50">
-                  <ShieldCheck className="w-5 h-5 md:w-5 md:h-5 text-emerald-500" />
-                </div>
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="absolute -right-2 -bottom-4 md:-right-6 md:-bottom-6 cursor-pointer z-50 group"
+                >
+                  {/* Glassmorphism Capsule */}
+                  <div className="flex items-center gap-3 bg-black/90 dark:bg-black/80 backdrop-blur-md border border-white/10 pl-2 pr-4 py-2 rounded-full shadow-2xl hover:shadow-primary/20 transition-all hover:scale-105 hover:border-primary/30">
+                    
+                    {/* Glowing Logo Container */}
+                    <div className="relative h-8 w-8 bg-[#F38020] rounded-full flex items-center justify-center shrink-0">
+                      <CloudflareLogo className="h-5 w-5 text-white" />
+                      {/* Scan Line Animation */}
+                      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent rounded-full opacity-0 group-hover:animate-pulse" />
+                    </div>
+
+                    {/* Text Details */}
+                    <div className="flex flex-col items-start leading-none">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Secured by</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-bold text-white tracking-tight">Cloudflare</span>
+                        {/* Blinking Live Indicator */}
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
               </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={5}>
-                <p>Secured by AcadFlow</p>
+              
+              <TooltipContent side="left" sideOffset={10} className="bg-zinc-900 border-zinc-800 text-white p-3 rounded-lg shadow-xl">
+                <div className="flex items-center gap-3">
+                  <div className="bg-emerald-500/20 p-2 rounded-md">
+                    <Lock size={16} className="text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs">256-bit SSL Encrypted</p>
+                    <p className="text-[10px] text-zinc-400">DDoS Protection Active</p>
+                  </div>
+                </div>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

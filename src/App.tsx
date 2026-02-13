@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { CommandMenu } from "@/components/layout/CommandMenu"; // Import this!
 
 // Pages
 import Login from "./pages/Login";
@@ -37,6 +38,10 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <BrowserRouter>
+          
+          {/* ✅ FIXED: Placed CommandMenu HERE (Outside Routes, Inside Router) */}
+          <CommandMenu /> 
+
           <Routes>
             {/* --- PUBLIC ROUTES --- */}
             <Route path="/login" element={<Login />} />
@@ -57,7 +62,6 @@ const App = () => (
               <Route element={<MainLayout />}>
                 
                 {/* 1. Global Shared */}
-                {/* Dashboard logic handle karega ki kise kahan bhejna hai */}
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/settings" element={<Settings />} />
                 

@@ -1,27 +1,29 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { ShieldAlert, RefreshCcw, LayoutDashboard, Users } from 'lucide-react';
+import { ShieldAlert, RefreshCcw, LayoutDashboard, Users, Ticket } from 'lucide-react'; // Added Ticket Icon
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
-// Import New Dynamic Components
+// Import Components
 import { AdminStats } from '@/components/admin/AdminStats';
 import { UserManagement } from '@/components/admin/UserManagement';
 import { GlobalAssignments } from '@/components/admin/GlobalAssignments';
+import { SupportTickets } from '@/components/admin/SupportTickets'; // Import New Component
 
 const ADMIN_EMAILS = ['admin@acadflow.in', 'admin@pvppcoe.ac.in'];
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'users' | 'assignments'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'assignments' | 'tickets'>('users'); // Added 'tickets' type
   const [loading, setLoading] = useState(true);
   
   // Data State
-  const [stats, setStats] = useState({ students: 0, teachers: 0, assignments: 0, submissions: 0 });
+  const [stats, setStats] = useState({ students: 0, teachers: 0, assignments: 0, submissions: 0, tickets: 0 });
   const [usersList, setUsersList] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<any[]>([]); // New State
 
   const isAdmin = user && ADMIN_EMAILS.includes(user.email || '');
 
@@ -32,31 +34,40 @@ export default function AdminDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. Stats
-      const [s, t, a, sub] = await Promise.all([
+      // 1. Parallel Data Fetching
+      const [s, t, a, sub, tick] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student'),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'teacher'),
         supabase.from('assignments').select('*', { count: 'exact', head: true }),
-        supabase.from('submissions').select('*', { count: 'exact', head: true })
+        supabase.from('submissions').select('*', { count: 'exact', head: true }),
+        supabase.from('support_tickets').select('*', { count: 'exact', head: true }).neq('status', 'resolved') // Count open tickets
       ]);
 
       setStats({
         students: s.count || 0,
         teachers: t.count || 0,
         assignments: a.count || 0,
-        submissions: sub.count || 0
+        submissions: sub.count || 0,
+        tickets: tick.count || 0 // New Stat
       });
 
-      // 2. Users
+      // 2. Fetch Users
       const { data: uData } = await supabase.from('profiles').select('*').order('name');
       setUsersList(uData || []);
 
-      // 3. Assignments
+      // 3. Fetch Assignments
       const { data: aData } = await supabase
         .from('assignments')
         .select('*, profiles:created_by(name), subjects:subject_id(name, code)')
         .order('created_at', { ascending: false });
       setAssignments(aData || []);
+
+      // 4. Fetch Tickets (New Logic)
+      const { data: tData } = await supabase
+        .from('support_tickets')
+        .select('*')
+        .order('created_at', { ascending: false });
+      setTickets(tData || []);
 
     } catch (err) {
       toast.error("Failed to fetch admin data");
@@ -92,7 +103,9 @@ export default function AdminDashboard() {
            <Button variant="outline" size="icon" onClick={fetchData} disabled={loading} title="Refresh Data">
              <RefreshCcw size={16} className={loading ? "animate-spin" : ""} />
            </Button>
+           
            <div className="h-9 w-px bg-border mx-2 hidden md:block"></div>
+           
            <Button 
              variant={activeTab === 'users' ? 'default' : 'outline'} 
              onClick={() => setActiveTab('users')}
@@ -100,12 +113,26 @@ export default function AdminDashboard() {
            >
              <Users size={16} /> Users
            </Button>
+           
            <Button 
              variant={activeTab === 'assignments' ? 'default' : 'outline'} 
              onClick={() => setActiveTab('assignments')}
              className="gap-2"
            >
              <LayoutDashboard size={16} /> Assignments
+           </Button>
+
+           <Button 
+             variant={activeTab === 'tickets' ? 'default' : 'outline'} 
+             onClick={() => setActiveTab('tickets')}
+             className="gap-2 relative"
+           >
+             <Ticket size={16} /> Support
+             {stats.tickets > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-[10px] flex items-center justify-center rounded-full">
+                    {stats.tickets}
+                </span>
+             )}
            </Button>
         </div>
       </header>
@@ -115,10 +142,14 @@ export default function AdminDashboard() {
 
       {/* 3. Dynamic Content Area */}
       <div className="min-h-[500px]">
-        {activeTab === 'users' ? (
+        {activeTab === 'users' && (
           <UserManagement users={usersList} refreshData={fetchData} loading={loading} />
-        ) : (
+        )}
+        {activeTab === 'assignments' && (
           <GlobalAssignments assignments={assignments} />
+        )}
+        {activeTab === 'tickets' && (
+          <SupportTickets tickets={tickets} refreshData={fetchData} />
         )}
       </div>
     </div>

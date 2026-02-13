@@ -1,13 +1,32 @@
 import { useState } from 'react';
-import { Mail, LifeBuoy, Globe, MessageCircle, HelpCircle, ChevronRight, ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { 
+  Mail, 
+  LifeBuoy, 
+  Globe, 
+  MessageCircle, 
+  HelpCircle, 
+  ChevronRight, 
+  ArrowLeft, 
+  Send, 
+  Loader2, 
+  Ticket,
+  Clock,
+  CheckCircle2
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
+
+// Reusing the grid pattern for consistency
+const GridPattern = () => (
+  <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.4]" />
+);
 
 export default function Support() {
     const navigate = useNavigate();
@@ -40,187 +59,212 @@ export default function Support() {
     };
 
     return (
-        <div className="max-w-5xl mx-auto p-8 space-y-12 animate-in fade-in">
-            
-            {/* Back Button */}
-            <div className="flex justify-start">
-                <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => navigate('/dashboard')}
-                    className="text-muted-foreground hover:text-foreground transition-colors group"
-                >
-                    <ArrowLeft size={16} className="mr-2 group-hover:-translate-x-1 transition-transform" />
-                    Back to Dashboard
-                </Button>
-            </div>
+        <div className="min-h-screen bg-background relative overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-4">
+            <GridPattern />
 
-            {/* Header Section */}
-            <div className="text-center space-y-4">
-                <div className="h-16 w-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 mx-auto rounded-2xl flex items-center justify-center">
-                    <LifeBuoy size={32} className="animate-pulse" />
-                </div>
-                <h1 className="text-4xl font-extrabold tracking-tight text-foreground">Support Center</h1>
-                <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                    Raise a ticket or reach out to our technical and departmental experts.
-                </p>
-            </div>
-
-            {/* Support Channels */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Technical Support Card */}
-                <Card className="hover:shadow-md transition-all border-border bg-card overflow-hidden">
-                    <div className="h-1.5 w-full bg-blue-600" />
-                    <CardContent className="p-6 space-y-4">
-                        <div className="h-10 w-10 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-lg flex items-center justify-center">
-                            <Mail size={20} />
-                        </div>
-                        <div className="space-y-1">
-                            <h3 className="text-sm font-semibold uppercase tracking-wider text-blue-600 font-bold">Technical Support</h3>
-                            <p className="text-xl font-bold text-foreground italic">Krishna Choudhary</p>
-                        </div>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                            Facing login issues, editor bugs, or server errors? Click below to send an email for technical resolution.
-                        </p>
-                        {/* MAILTO LINK ADDED HERE */}
-                        <a 
-                            href="mailto:support@acadflow.com" 
-                            className="block font-mono text-sm font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/20 p-2.5 rounded-lg text-center border border-blue-100 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
-                        >
-                            support@acadflow.com
-                        </a>
-                    </CardContent>
-                </Card>
-
-                {/* Departmental Admin Card */}
-                <Card className="hover:shadow-md transition-all border-border bg-card overflow-hidden">
-                    <div className="h-1.5 w-full bg-emerald-600" />
-                    <CardContent className="p-6 space-y-4">
-                        <div className="h-10 w-10 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-lg flex items-center justify-center">
-                            <Globe size={20} />
-                        </div>
-                        <div className="space-y-1">
-                            <h3 className="text-sm font-semibold uppercase tracking-wider text-emerald-600 font-bold">Departmental Admin</h3>
-                            <p className="text-xl font-bold text-foreground italic">Dr. Rais Mulla</p>
-                        </div>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                            For curriculum queries, batch changes, or practical scheduling, contact the **VPPCOE & VA HOD**.
-                        </p>
-                        <Button variant="outline" className="w-full group border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20">
-                            Contact Coordinator <ChevronRight size={14} className="ml-2 group-hover:translate-x-1 transition-transform" />
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Contact Form Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                <div className="lg:col-span-2">
-                    <Card className="border-border shadow-lg bg-card">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-foreground">
-                                <MessageCircle className="text-primary" /> Direct Message
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={handleFormSubmit} className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="name">Your Name</Label>
-                                        <Input 
-                                            id="name" 
-                                            placeholder="John Doe" 
-                                            value={formData.name}
-                                            onChange={e => setFormData({...formData, name: e.target.value})}
-                                            required 
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="email">Email Address</Label>
-                                        <Input 
-                                            id="email" 
-                                            type="email" 
-                                            placeholder="john@example.com" 
-                                            value={formData.email}
-                                            onChange={e => setFormData({...formData, email: e.target.value})}
-                                            required 
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="subject">Subject</Label>
-                                    <Input 
-                                        id="subject" 
-                                        placeholder="Issue with Lab Submission" 
-                                        value={formData.subject}
-                                        onChange={e => setFormData({...formData, subject: e.target.value})}
-                                        required 
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="message">Message</Label>
-                                    <Textarea 
-                                        id="message" 
-                                        placeholder="Describe your issue in detail..." 
-                                        className="min-h-[120px]" 
-                                        value={formData.message}
-                                        onChange={e => setFormData({...formData, message: e.target.value})}
-                                        required 
-                                    />
-                                </div>
-                                <Button type="submit" className="w-full font-bold shadow-lg shadow-primary/20" disabled={isSubmitting}>
-                                    {isSubmitting ? (
-                                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...</>
-                                    ) : (
-                                        <><Send className="mr-2 h-4 w-4" /> Send Support Ticket</>
-                                    )}
-                                </Button>
-                            </form>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* FAQ Sidebar */}
-                <div className="space-y-6">
-                    <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
-                        <HelpCircle size={20} className="text-primary" /> FAQ
-                    </h2>
-                    <div className="space-y-3">
-                        {[
-                            {
-                                q: "Editor bug?",
-                                a: "Ensure first line is `Filename.extension`."
-                            },
-                            {
-                                q: "Modification?",
-                                a: "Request Faculty for a 'Redo Request'."
-                            },
-                            {
-                                q: "Security Check?",
-                                a: "Tab switches are logged for integrity."
-                            }
-                        ].map((faq, i) => (
-                            <details key={i} className="group border border-border rounded-lg bg-card p-3 cursor-pointer hover:bg-muted/10 transition-colors">
-                                <summary className="text-sm font-semibold flex justify-between items-center list-none text-foreground">
-                                    {faq.q}
-                                    <ChevronRight size={14} className="group-open:rotate-90 transition-transform text-muted-foreground" />
-                                </summary>
-                                <p className="mt-2 text-xs text-muted-foreground border-l-2 border-primary/20 pl-3 leading-relaxed">
-                                    {faq.a}
-                                </p>
-                            </details>
-                        ))}
+            {/* Top Navigation */}
+            <div className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-md">
+                <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => navigate('/dashboard')}
+                        className="text-muted-foreground hover:text-foreground group"
+                    >
+                        <ArrowLeft size={16} className="mr-2 group-hover:-translate-x-1 transition-transform" />
+                        Dashboard
+                    </Button>
+                    <div className="flex items-center gap-2 font-semibold text-sm text-muted-foreground">
+                        <LifeBuoy size={14} /> Help Center
                     </div>
                 </div>
             </div>
 
-            {/* Footer Note */}
-            <div className="text-center pt-8 border-t border-border">
-                <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
-                    <MessageCircle size={16} className="text-blue-500" /> Average response time: 2-4 business hours.
-                </p>
-            </div>
+            <main className="flex-1 max-w-6xl mx-auto w-full p-8 md:p-12 space-y-12">
+                
+                {/* Hero Section */}
+                <div className="text-center space-y-4">
+                    <Badge variant="outline" className="px-3 py-1 border-blue-500/20 text-blue-600 bg-blue-50 dark:bg-blue-900/20 mb-2">
+                        24/7 Support
+                    </Badge>
+                    <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
+                        How can we help you?
+                    </h1>
+                    <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                        Resolve technical issues, inquire about academic schedules, or raise a support ticket directly to the administration.
+                    </p>
+                </div>
+
+                {/* Direct Contact Channels */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    {/* Tech Support */}
+                    <Card className="hover:shadow-lg transition-all border-border bg-card/50 backdrop-blur-sm group cursor-pointer relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 group-hover:w-1.5 transition-all" />
+                        <CardContent className="p-6 flex items-start gap-4">
+                            <div className="h-12 w-12 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-xl flex items-center justify-center shrink-0">
+                                <Mail size={24} />
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="font-bold text-lg">Technical Support</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Login issues, bugs, or platform errors? Reach out to our dev team.
+                                </p>
+                                <a 
+                                    href="mailto:team.acadflow@gmail.com" 
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline mt-2"
+                                >
+                                    team.acadflow@gmail.com <ChevronRight size={14} />
+                                </a>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Academic Admin */}
+                    <Card className="hover:shadow-lg transition-all border-border bg-card/50 backdrop-blur-sm group cursor-pointer relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500 group-hover:w-1.5 transition-all" />
+                        <CardContent className="p-6 flex items-start gap-4">
+                            <div className="h-12 w-12 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
+                                <Globe size={24} />
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="font-bold text-lg">Academic Admin</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Queries regarding batches, practicals, or enrollment status.
+                                </p>
+                                <div className="flex items-center gap-2 mt-2">
+                                    <span className="text-xs font-mono bg-muted px-2 py-1 rounded text-foreground">Dr. Rais Mulla</span>
+                                    <span className="text-xs text-muted-foreground">HOD, Computer Dept.</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                    
+                    {/* Ticket Form */}
+                    <div className="lg:col-span-2">
+                        <Card className="border-border shadow-md bg-card">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-xl">
+                                    <Ticket className="text-primary" /> Raise a Ticket
+                                </CardTitle>
+                                <CardDescription>
+                                    Fill out the form below for detailed assistance. We usually respond within 4 hours.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <form onSubmit={handleFormSubmit} className="space-y-5">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="name">Full Name</Label>
+                                            <Input 
+                                                id="name" 
+                                                placeholder="John Doe" 
+                                                value={formData.name}
+                                                onChange={e => setFormData({...formData, name: e.target.value})}
+                                                required 
+                                                className="bg-background/50"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="email">Email Address</Label>
+                                            <Input 
+                                                id="email" 
+                                                type="email" 
+                                                placeholder="john@example.com" 
+                                                value={formData.email}
+                                                onChange={e => setFormData({...formData, email: e.target.value})}
+                                                required 
+                                                className="bg-background/50"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="subject">Subject</Label>
+                                        <Input 
+                                            id="subject" 
+                                            placeholder="e.g. Issue with Lab Submission" 
+                                            value={formData.subject}
+                                            onChange={e => setFormData({...formData, subject: e.target.value})}
+                                            required 
+                                            className="bg-background/50"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="message">Description</Label>
+                                        <Textarea 
+                                            id="message" 
+                                            placeholder="Please describe your issue in detail..." 
+                                            className="min-h-[150px] bg-background/50 resize-none" 
+                                            value={formData.message}
+                                            onChange={e => setFormData({...formData, message: e.target.value})}
+                                            required 
+                                        />
+                                    </div>
+                                    <Button type="submit" className="w-full sm:w-auto min-w-[150px]" disabled={isSubmitting}>
+                                        {isSubmitting ? (
+                                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
+                                        ) : (
+                                            <><Send className="mr-2 h-4 w-4" /> Submit Ticket</>
+                                        )}
+                                    </Button>
+                                </form>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* FAQ Sidebar */}
+                    <div className="space-y-6">
+                        <div className="bg-muted/30 border border-border rounded-xl p-6 space-y-4">
+                            <h2 className="text-lg font-bold flex items-center gap-2">
+                                <HelpCircle size={20} className="text-primary" /> Common Questions
+                            </h2>
+                            <div className="space-y-3">
+                                {[
+                                    {
+                                        q: "Editor not loading?",
+                                        a: "Ensure your filename ends with the correct extension (e.g., .c, .py)."
+                                    },
+                                    {
+                                        q: "Submission mistake?",
+                                        a: "Contact your faculty for a 'Redo Request' before the deadline."
+                                    },
+                                    {
+                                        q: "Security warning?",
+                                        a: "We log tab switches. Avoid switching tabs during active tests."
+                                    }
+                                ].map((faq, i) => (
+                                    <div key={i} className="space-y-1">
+                                        <h4 className="text-sm font-semibold text-foreground flex items-start gap-2">
+                                            <ChevronRight size={14} className="mt-1 text-muted-foreground shrink-0" />
+                                            {faq.q}
+                                        </h4>
+                                        <p className="text-xs text-muted-foreground pl-6 leading-relaxed">
+                                            {faq.a}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <Card className="bg-primary/5 border-primary/10">
+                            <CardContent className="p-6">
+                                <div className="flex items-center gap-2 mb-2 text-primary font-bold text-sm">
+                                    <Clock size={16} /> Business Hours
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Monday - Friday: 9:00 AM - 5:00 PM<br/>
+                                    Average response time: <span className="font-semibold text-foreground">2-4 hours</span>
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </main>
         </div>
     );
 }

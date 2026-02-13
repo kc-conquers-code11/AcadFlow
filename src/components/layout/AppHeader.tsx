@@ -18,7 +18,9 @@ import {
   Slash,
   Settings,
   User,
-  ExternalLink
+  ExternalLink,
+  LifeBuoy, // Added Icon
+  ShieldCheck // Added Icon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -54,7 +56,6 @@ export function AppHeader() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-    // Aapke search page ka route yahan aayega
     navigate(`/dashboard/search?q=${encodeURIComponent(searchQuery)}`);
   };
 
@@ -65,11 +66,9 @@ export function AppHeader() {
     
     if (!lastPart || lastPart === 'dashboard') return 'Overview';
     
-    // UUID (ID) check logic
     const isId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(lastPart);
     if (isId || lastPart.length > 25) return 'Details View';
     
-    // Multi-word slug to readable text (e.g. "batch-dashboard" -> "Batch Dashboard")
     return lastPart
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -125,7 +124,7 @@ export function AppHeader() {
         />
         <input
           type="text"
-          placeholder="Search practicals, assignments, batches..."
+          placeholder="Search..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="h-9 w-full pl-9 pr-4 rounded-full bg-muted/50 border border-transparent focus:bg-background focus:border-ring focus:ring-4 focus:ring-ring/10 transition-all text-sm outline-none placeholder:text-muted-foreground"
@@ -133,9 +132,33 @@ export function AppHeader() {
       </form>
 
       {/* Right Area: Actions */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
 
-        {/* Notifications (UI Link) */}
+        {/* --- NEW: Quick Links (Visible on Desktop) --- */}
+        <div className="hidden md:flex items-center gap-1 mr-2">
+            <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-muted-foreground hover:text-primary h-9 px-3"
+                onClick={() => navigate('/support')}
+            >
+                <LifeBuoy size={16} className="mr-2" />
+                Support
+            </Button>
+            <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-muted-foreground hover:text-primary h-9 px-3"
+                onClick={() => navigate('/privacy')}
+            >
+                <ShieldCheck size={16} className="mr-2" />
+                Privacy
+            </Button>
+        </div>
+        
+        <div className="h-5 w-px bg-border mx-1 hidden md:block" />
+
+        {/* Notifications */}
         <Button 
             variant="ghost" 
             size="icon" 
@@ -145,8 +168,6 @@ export function AppHeader() {
           <Bell size={18} />
           <span className="absolute top-2.5 right-2.5 h-2 w-2 bg-destructive rounded-full border-2 border-background" />
         </Button>
-
-        <div className="h-6 w-px bg-border mx-1" />
 
         {/* User Profile Dropdown */}
         <DropdownMenu>
@@ -186,22 +207,20 @@ export function AppHeader() {
               My Profile
             </DropdownMenuItem>
 
-           
-            {/* Optional Support Link */}
             <DropdownMenuItem 
-              className="cursor-pointer text-xs font-medium py-2.5 rounded-md"
+              className="cursor-pointer text-xs font-medium py-2.5 rounded-md md:hidden" 
               onClick={() => navigate('/support')}
             >
               <ExternalLink className="mr-2 h-4 w-4 text-slate-500" />
               Help & Support
             </DropdownMenuItem>
 
-         <DropdownMenuItem 
-              className="cursor-pointer text-xs font-medium py-2.5 rounded-md"
+            <DropdownMenuItem 
+              className="cursor-pointer text-xs font-medium py-2.5 rounded-md md:hidden" 
               onClick={() => navigate('/privacy')}
             >
-              {/* <Settings className="mr-2 h-4 w-4 text-slate-500" />/ */}
-              Privacy Policy
+               <ShieldCheck className="mr-2 h-4 w-4 text-slate-500" />
+               Privacy Policy
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />

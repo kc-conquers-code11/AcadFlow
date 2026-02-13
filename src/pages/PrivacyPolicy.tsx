@@ -1,69 +1,184 @@
-import { Shield, Lock, Eye, FileText, Mail } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Shield, 
+  Lock, 
+  Eye, 
+  FileText, 
+  Mail, 
+  ArrowLeft, 
+  Server, 
+  UserCheck, 
+  Fingerprint, 
+  Building 
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+
+// Reuse the visual pattern from Login for consistency
+const GridPattern = () => (
+  <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.4]" />
+);
 
 export default function PrivacyPolicy() {
+  const navigate = useNavigate();
+
   return (
-    <div className="max-w-4xl mx-auto p-8 animate-in fade-in slide-in-from-bottom-4">
-      <div className="flex items-center gap-3 mb-6 border-b pb-6">
-        <div className="h-12 w-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
-          <Shield size={28} />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
-          <p className="text-muted-foreground text-sm italic">Last updated: February 14, 2026</p>
+    <div className="min-h-screen bg-background relative overflow-hidden flex flex-col">
+      <GridPattern />
+
+      {/* Top Navigation Bar */}
+      <div className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-md">
+        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate(-1)}
+            className="text-muted-foreground hover:text-foreground group"
+          >
+            <ArrowLeft size={16} className="mr-2 group-hover:-translate-x-1 transition-transform" />
+            Back
+          </Button>
+          <div className="flex items-center gap-2 font-semibold text-sm text-muted-foreground">
+            <Shield size={14} /> AcadFlow Legal
+          </div>
         </div>
       </div>
 
-      <div className="prose prose-slate dark:prose-invert max-w-none space-y-8">
-        <section>
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <FileText size={20} className="text-primary" /> 1. Introduction
-          </h2>
-          <p>
-            Welcome to <strong>AcadFlow</strong>. We are committed to protecting the personal data of our students and faculty members. 
-            This Privacy Policy outlines how we collect, handle, and secure your information within our academic ecosystem.
+      {/* Main Content */}
+      <main className="flex-1 max-w-4xl mx-auto w-full p-8 md:p-12 animate-in fade-in slide-in-from-bottom-4">
+        
+        {/* Header Section */}
+        <div className="text-center space-y-4 mb-12">
+          <Badge variant="outline" className="px-3 py-1 border-primary/20 text-primary bg-primary/5 mb-4">
+            Official Policy
+          </Badge>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
+            Privacy Policy
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            We are committed to transparency. This document outlines how AcadFlow collects, protects, and utilizes academic data.
           </p>
-        </section>
-
-        <section className="bg-muted/30 p-6 rounded-xl border border-border">
-          <h2 className="text-xl font-semibold flex items-center gap-2 mb-4">
-            <Eye size={20} className="text-primary" /> 2. Data Collection & Usage
-          </h2>
-          <ul className="space-y-3">
-            <li className="flex gap-2">
-              <span className="font-bold text-primary">●</span>
-              <span><strong>Profile Information:</strong> We store your Name, Institutional Email, Enrollment Number, Division, and Batch details to provide personalized dashboard access.</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="font-bold text-primary">●</span>
-              <span><strong>Academic Submissions:</strong> Code snippets, lab reports, Viva scores, and evaluation grades are stored for academic record-keeping and faculty review.</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="font-bold text-primary">●</span>
-              <span><span><strong>Security Logs:</strong> To ensure academic integrity, we monitor tab-switching activity and clipboard usage during active assessments.</span></span>
-            </li>
-          </ul>
-        </section>
-
-        <section>
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Lock size={20} className="text-primary" /> 3. Data Security & Storage
-          </h2>
-          <p>
-            Your data is stored on encrypted servers managed by <strong>Supabase</strong>. 
-            Access is strictly restricted to authorized institutional faculty and department heads (HODs) for grading and audit purposes.
+          <p className="text-xs font-mono text-muted-foreground pt-2">
+            Last Updated: February 14, 2026
           </p>
-        </section>
+        </div>
 
-        <section className="bg-primary/5 p-6 rounded-xl border border-primary/10">
-          <h2 className="text-xl font-semibold flex items-center gap-2 mb-2 text-primary">
-            <Mail size={20} /> 4. Contact & Compliance
-          </h2>
-          <p className="text-sm">
-            If you have questions regarding your data privacy or wish to request data correction, please contact our administrative team at:
-          </p>
-          <p className="font-mono font-bold mt-2 text-primary underline">privacy@acadflow.com</p>
-        </section>
-      </div>
+        <Separator className="my-8" />
+
+        <div className="space-y-12">
+          
+          {/* Section 1: Intro */}
+          <section className="space-y-4">
+            <h2 className="text-2xl font-bold flex items-center gap-2 text-foreground">
+              <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600">
+                <FileText size={20} /> 
+              </div>
+              1. Introduction
+            </h2>
+            <p className="text-muted-foreground leading-relaxed text-lg">
+              Welcome to <strong>AcadFlow</strong>. As an academic management platform utilized by the Computer Engineering Department, we adhere to strict institutional data protection standards. This policy applies to all students, faculty, and administrators accessing the portal.
+            </p>
+          </section>
+
+          {/* Section 2: Data Collection (Grid Layout) */}
+          <section className="space-y-6">
+            <h2 className="text-2xl font-bold flex items-center gap-2 text-foreground">
+              <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600">
+                <Eye size={20} /> 
+              </div>
+              2. Data Collection & Usage
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="bg-card/50 hover:bg-card transition-colors">
+                <CardContent className="p-6 space-y-2">
+                  <div className="flex items-center gap-2 font-semibold text-foreground">
+                    <UserCheck size={18} className="text-primary" /> Profile Data
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    We store your Full Name, Institutional Email, Enrollment Number, Division, and Batch to maintain accurate academic records.
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-card/50 hover:bg-card transition-colors">
+                <CardContent className="p-6 space-y-2">
+                  <div className="flex items-center gap-2 font-semibold text-foreground">
+                    <Server size={18} className="text-primary" /> Academic Records
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Code submissions, lab reports, viva voice marks, and assignment grades are stored securely for grading and auditing.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-card/50 hover:bg-card transition-colors">
+                <CardContent className="p-6 space-y-2">
+                  <div className="flex items-center gap-2 font-semibold text-foreground">
+                    <Fingerprint size={18} className="text-primary" /> Integrity Logs
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    During active assessments, we monitor tab-switching frequency and clipboard actions to ensure academic integrity.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-card/50 hover:bg-card transition-colors">
+                <CardContent className="p-6 space-y-2">
+                  <div className="flex items-center gap-2 font-semibold text-foreground">
+                    <Building size={18} className="text-primary" /> Institutional Use
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Data is used strictly for academic purposes by PVPPCOE faculty. We do not sell or share data with third parties.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
+          {/* Section 3: Security */}
+          <section className="space-y-4">
+            <h2 className="text-2xl font-bold flex items-center gap-2 text-foreground">
+              <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600">
+                <Lock size={20} /> 
+              </div>
+              3. Security Infrastructure
+            </h2>
+            <div className="bg-muted/30 border border-border rounded-xl p-6">
+              <p className="text-muted-foreground leading-relaxed">
+                Your data is stored on encrypted database servers compliant with industry standards. 
+                Network traffic is protected by <strong>Cloudflare</strong>, providing DDoS protection and SSL encryption (TLS 1.3). 
+                Access to the database is restricted to authorized administrative personnel via Role-Based Access Control (RBAC).
+              </p>
+            </div>
+          </section>
+
+          {/* Section 4: Contact */}
+          <section className="space-y-4 pb-10">
+            <h2 className="text-2xl font-bold flex items-center gap-2 text-foreground">
+              <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600">
+                <Mail size={20} /> 
+              </div>
+              4. Contact Support
+            </h2>
+            <p className="text-muted-foreground">
+              For any concerns regarding data privacy, corrections to your profile, or to report a vulnerability, please contact the administration directly.
+            </p>
+            <div className="mt-4">
+              <a 
+                href="mailto:vu1f2425053@pvppcoe.ac.in"
+                target="_blank"
+                rel="noopener noreferrer" 
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+              >
+                <Mail size={16} /> Contact Privacy Team
+              </a>
+            </div>
+          </section>
+
+        </div>
+      </main>
     </div>
   );
 }
