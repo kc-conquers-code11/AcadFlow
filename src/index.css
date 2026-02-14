@@ -320,7 +320,185 @@
   from {
     clip-path: circle(0px at var(--theme-x, 50%) var(--theme-y, 50%));
   }
+
   to {
     clip-path: circle(var(--theme-r, 150vmax) at var(--theme-x, 50%) var(--theme-y, 50%));
   }
+}
+
+/* ═══ Tiptap Editor Styles ═══ */
+
+/* Editor fills its container */
+.tiptap {
+  outline: none;
+}
+
+.tiptap.ProseMirror {
+  min-height: 100%;
+}
+
+/* Headings */
+.tiptap h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0.75em 0 0.5em;
+  line-height: 1.3;
+}
+
+.tiptap h2 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 0.75em 0 0.4em;
+  line-height: 1.35;
+}
+
+.tiptap h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0.6em 0 0.35em;
+  line-height: 1.4;
+}
+
+/* Paragraphs */
+.tiptap p {
+  margin: 0.4em 0;
+}
+
+/* Bullet Lists */
+.tiptap ul {
+  list-style-type: disc;
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.tiptap ul ul {
+  list-style-type: circle;
+}
+
+.tiptap ul ul ul {
+  list-style-type: square;
+}
+
+/* Ordered Lists */
+.tiptap ol {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+/* List Items */
+.tiptap li {
+  padding-left: 0.25em;
+  margin: 0.15em 0;
+}
+
+.tiptap li p {
+  margin: 0;
+}
+
+/* Tables */
+.tiptap table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  table-layout: auto;
+  border: 2px solid color-mix(in oklch, var(--muted-foreground), transparent 50%);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.tiptap th,
+.tiptap td {
+  border: 1px solid color-mix(in oklch, var(--muted-foreground), transparent 60%);
+  padding: 0.5em 0.75em;
+  text-align: left;
+  vertical-align: top;
+  min-width: 80px;
+  position: relative;
+}
+
+.tiptap th {
+  background: var(--muted);
+  font-weight: 600;
+  border-bottom: 2px solid color-mix(in oklch, var(--muted-foreground), transparent 40%);
+}
+
+/* Selected cell highlight */
+.tiptap .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--primary);
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Table resize handle */
+.tiptap .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: -2px;
+  width: 4px;
+  background-color: var(--primary);
+  pointer-events: none;
+}
+
+.tiptap.resize-cursor {
+  cursor: col-resize;
+}
+
+/* Blockquotes */
+.tiptap blockquote {
+  border-left: 3px solid var(--primary);
+  background: color-mix(in oklch, var(--primary), transparent 95%);
+  padding: 0.5em 1em;
+  margin: 0.75em 0;
+  border-radius: 0 0.5rem 0.5rem 0;
+  font-style: normal;
+}
+
+/* Code */
+.tiptap code {
+  background: var(--muted);
+  padding: 0.15em 0.4em;
+  border-radius: 0.25em;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.875em;
+}
+
+.tiptap pre {
+  background: var(--muted);
+  padding: 0.75em 1em;
+  border-radius: 0.5em;
+  margin: 0.75em 0;
+  overflow-x: auto;
+}
+
+.tiptap pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Links */
+.tiptap a {
+  color: var(--primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Images */
+.tiptap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 0.5em 0;
+}
+
+/* Horizontal Rule */
+.tiptap hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
 }
