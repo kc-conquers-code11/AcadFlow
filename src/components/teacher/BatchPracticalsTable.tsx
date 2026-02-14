@@ -62,21 +62,21 @@ export function BatchPracticalsTable({
   const isTeacher = userRole === 'teacher' || userRole === 'hod';
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden bg-white shadow-sm">
+    <div className="border border-border rounded-xl overflow-hidden bg-card shadow-sm">
       <Table>
         <TableHeader>
-          <TableRow className="bg-slate-50 hover:bg-slate-50">
-            <TableHead className="w-20 font-bold">Exp No</TableHead>
-            <TableHead className="font-bold">Title & Aim</TableHead>
-            <TableHead className="w-32 text-center font-bold">Mode</TableHead>
+          <TableRow className="bg-muted/50 hover:bg-muted/50">
+            <TableHead className="w-24 font-bold text-sm">Exp No</TableHead>
+            <TableHead className="font-bold text-sm">Title & Aim</TableHead>
+            <TableHead className="w-32 text-center font-bold text-sm">Mode</TableHead>
 
             {isTeacher ? (
-              <TableHead className="w-32 text-center font-bold">Deadline</TableHead>
+              <TableHead className="w-32 text-center font-bold text-sm">Deadline</TableHead>
             ) : (
-              <TableHead className="w-40 text-center font-bold">Status / Viva</TableHead>
+              <TableHead className="w-40 text-center font-bold text-sm">Status / Viva</TableHead>
             )}
 
-            <TableHead className="w-40 text-right font-bold pr-6">Actions</TableHead>
+            <TableHead className="w-40 text-right font-bold text-sm pr-6">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -91,28 +91,28 @@ export function BatchPracticalsTable({
               const showScore = item.studentStatus === 'evaluated' || (item.studentMarks !== null && item.studentMarks !== undefined);
 
               return (
-                <TableRow key={item.id} className="group hover:bg-slate-50/50 transition-colors">
-                  <TableCell className="font-mono font-medium text-slate-600">
+                <TableRow key={item.id} className="group hover:bg-muted/30 transition-colors">
+                  <TableCell className="font-mono font-semibold text-muted-foreground text-sm py-4">
                     {item.experimentNumber || '-'}
                   </TableCell>
 
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-foreground">{item.title}</span>
-                      <span className="text-xs text-muted-foreground truncate max-w-[250px]">
+                  <TableCell className="py-4">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-semibold text-foreground text-sm">{item.title}</span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[350px]">
                         {item.description || 'No description'}
                       </span>
                     </div>
                   </TableCell>
 
-                  <TableCell className="text-center">
-                    <Badge variant="secondary" className="font-normal text-[10px] capitalize">
+                  <TableCell className="text-center py-4">
+                    <Badge variant="secondary" className="font-medium text-xs capitalize px-3 py-0.5">
                       {item.practicalMode || 'code'}
                     </Badge>
                   </TableCell>
 
                   {isTeacher ? (
-                    <TableCell className="text-center text-xs text-muted-foreground">
+                    <TableCell className="text-center text-sm text-muted-foreground py-4">
                       {item.deadline ? new Date(item.deadline).toLocaleDateString() : '-'}
                     </TableCell>
                   ) : (
@@ -143,7 +143,7 @@ export function BatchPracticalsTable({
                     </TableCell>
                   )}
 
-                  <TableCell className="text-right pr-4">
+                  <TableCell className="text-right pr-4 py-4">
                     <div className="flex items-center justify-end gap-2">
 
                       {!isTeacher && (
@@ -154,7 +154,7 @@ export function BatchPracticalsTable({
                           className={cn(
                             "transition-all",
                             showScore || item.studentStatus === 'submitted'
-                              ? "hover:bg-slate-100"
+                              ? "hover:bg-muted"
                               : "bg-blue-600 hover:bg-blue-700 shadow-sm"
                           )}
                         >
@@ -177,7 +177,7 @@ export function BatchPracticalsTable({
                           <div className="flex gap-1">
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50" onClick={() => onViewResponses(item)}>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-500/10" onClick={() => onViewResponses(item)}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
                               </TooltipTrigger>
@@ -186,7 +186,7 @@ export function BatchPracticalsTable({
 
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700 hover:bg-slate-100" onClick={() => onEdit(item)}>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted" onClick={() => onEdit(item)}>
                                   <Pencil className="h-4 w-4" />
                                 </Button>
                               </TooltipTrigger>
@@ -198,7 +198,7 @@ export function BatchPracticalsTable({
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                                  className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-500/10"
                                   onClick={() => {
                                     if (item.id) onDelete(item.id);
                                     else console.error("Missing ID");

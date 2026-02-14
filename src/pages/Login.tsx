@@ -55,7 +55,7 @@ const CloudflareLogo = ({ className }: { className?: string }) => (
 );
 
 export default function Login() {
-  const PROFILE = "https://www.linkedin.com/in/kc-thedev"; 
+  const PROFILE = "https://www.linkedin.com/in/kc-thedev";
 
   // --- State Management ---
   const [isLogin, setIsLogin] = useState(true);
@@ -65,7 +65,7 @@ export default function Login() {
   const [role, setRole] = useState<'student' | 'teacher'>('student');
   const [division, setDivision] = useState<'A' | 'B'>('A');
   const [batch, setBatch] = useState<'A' | 'B' | 'C'>('A');
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -85,19 +85,19 @@ export default function Login() {
         const { data, error } = await login(email, password);
         if (error) throw error;
         toast.success("Welcome back!");
-        
+
         // CHECK IF USER IS ADMIN AND REDIRECT
         if (data.user?.user_metadata?.role === 'admin') {
-            navigate('/admin');
+          navigate('/admin');
         } else {
-            navigate('/dashboard');
+          navigate('/dashboard');
         }
 
       } else {
         if (!name.trim()) throw new Error("Name is required");
         const divToSend = role === 'student' ? division : undefined;
         const batchToSend = role === 'student' ? batch : undefined;
-        
+
         const { error } = await signup(email, password, name, role, divToSend, batchToSend);
         if (error) throw error;
         toast.success("Account created! Welcome to AcadFlow.");
@@ -120,7 +120,7 @@ export default function Login() {
         style={{
           backgroundImage: `radial-gradient(125% 125% at 50% 10%, var(--background) 40%, var(--primary) 100%)`,
           backgroundSize: "100% 100%",
-          opacity: 0.8 
+          opacity: 0.8
         }}
       />
 
@@ -137,19 +137,38 @@ export default function Login() {
         </div>
         <div className="hidden md:flex gap-6 text-sm font-medium text-muted-foreground items-center">
           <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            onClick={(e) => {
+              const btn = e.currentTarget;
+              const rect = btn.getBoundingClientRect();
+              const x = rect.left + rect.width / 2;
+              const y = rect.top + rect.height / 2;
+              const maxRadius = Math.hypot(
+                Math.max(x, window.innerWidth - x),
+                Math.max(y, window.innerHeight - y)
+              );
+              document.documentElement.style.setProperty('--theme-x', `${x}px`);
+              document.documentElement.style.setProperty('--theme-y', `${y}px`);
+              document.documentElement.style.setProperty('--theme-r', `${maxRadius}px`);
+              if (document.startViewTransition) {
+                document.startViewTransition(() => {
+                  setTheme(theme === "dark" ? "light" : "dark");
+                });
+              } else {
+                setTheme(theme === "dark" ? "light" : "dark");
+              }
+            }}
             className="p-2 rounded-full hover:bg-muted transition-colors text-foreground"
             aria-label="Toggle Theme"
           >
             {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
           </button>
-          <span 
+          <span
             className="cursor-pointer hover:text-foreground transition-colors"
             onClick={() => navigate('/privacy')}
           >
             Documentation
           </span>
-          <span 
+          <span
             className="cursor-pointer hover:text-foreground transition-colors"
             onClick={() => navigate('/support')}
           >
@@ -220,7 +239,7 @@ export default function Login() {
                 {isLogin ? "Sign in" : "Create Account"}
               </h2>
               <p className="text-muted-foreground text-sm mt-1">
-                 {isLogin ? "Computer Engineering Department" : "Join the academic portal"}
+                {isLogin ? "Computer Engineering Department" : "Join the academic portal"}
               </p>
             </div>
 
@@ -234,15 +253,15 @@ export default function Login() {
                     className="overflow-hidden"
                   >
                     <div className="space-y-2">
-                        <Label htmlFor="name">Full Name</Label>
-                        <Input
-                            id="name"
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required={!isLogin}
-                            placeholder="John Doe"
-                        />
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input
+                        id="name"
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required={!isLogin}
+                        placeholder="John Doe"
+                      />
                     </div>
                   </motion.div>
                 )}
@@ -386,7 +405,7 @@ export default function Login() {
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5 }}
@@ -394,7 +413,7 @@ export default function Login() {
                 >
                   {/* Glassmorphism Capsule */}
                   <div className="flex items-center gap-3 bg-black/90 dark:bg-black/80 backdrop-blur-md border border-white/10 pl-2 pr-4 py-2 rounded-full shadow-2xl hover:shadow-primary/20 transition-all hover:scale-105 hover:border-primary/30">
-                    
+
                     {/* Glowing Logo Container */}
                     <div className="relative h-8 w-8 bg-[#F38020] rounded-full flex items-center justify-center shrink-0">
                       <CloudflareLogo className="h-5 w-5 text-white" />
@@ -417,7 +436,7 @@ export default function Login() {
                   </div>
                 </motion.div>
               </TooltipTrigger>
-              
+
               <TooltipContent side="left" sideOffset={10} className="bg-zinc-900 border-zinc-800 text-white p-3 rounded-lg shadow-xl">
                 <div className="flex items-center gap-3">
                   <div className="bg-emerald-500/20 p-2 rounded-md">
@@ -438,7 +457,7 @@ export default function Login() {
       {/* Footer */}
       <footer className="w-full p-6 text-center text-xs text-muted-foreground font-medium relative z-10">
         &copy; 2026 PVPP College of Engineering. All rights reserved - Powered by{' '}
-        <span 
+        <span
           className="text-primary cursor-pointer hover:underline underline-offset-2 transition-all font-bold"
           onClick={() => window.open(PROFILE, '_blank')}
         >

@@ -109,7 +109,7 @@ export function AppSidebar() {
 
       {/* CONTENT */}
       <SidebarContent className="px-2 py-4">
-        
+
         {/* SEARCH BUTTON */}
         <div className="px-2 mb-4 group-data-[collapsible=icon]:hidden">
           <Button
@@ -162,10 +162,10 @@ export function AppSidebar() {
           <div className="px-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsible=icon]:hidden">
             System
           </div>
-          
+
           {systemItems.map((item) => {
-             const isActive = location.pathname === item.url;
-             return (
+            const isActive = location.pathname === item.url;
+            return (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
                   asChild
@@ -183,17 +183,40 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-             );
+            );
           })}
         </SidebarMenu>
       </SidebarContent>
-              
+
       {/* FOOTER */}
       <SidebarFooter className="border-t border-sidebar-border bg-sidebar p-2">
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          onClick={(e) => {
+            const btn = e.currentTarget;
+            const rect = btn.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            // Calculate the maximum radius needed to cover the entire screen
+            const maxRadius = Math.hypot(
+              Math.max(x, window.innerWidth - x),
+              Math.max(y, window.innerHeight - y)
+            );
+
+            // Set CSS custom properties for the animation origin
+            document.documentElement.style.setProperty('--theme-x', `${x}px`);
+            document.documentElement.style.setProperty('--theme-y', `${y}px`);
+            document.documentElement.style.setProperty('--theme-r', `${maxRadius}px`);
+
+            if (document.startViewTransition) {
+              document.startViewTransition(() => {
+                setTheme(theme === 'dark' ? 'light' : 'dark');
+              });
+            } else {
+              setTheme(theme === 'dark' ? 'light' : 'dark');
+            }
+          }}
           className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-sidebar-accent mb-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         >
           {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
@@ -204,7 +227,7 @@ export function AppSidebar() {
 
         {user && (
           <div className="mt-2 border-t border-sidebar-border/50 pt-2 flex items-center gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:flex-col">
-            
+
             <div className="h-8 w-8 rounded-md bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0 border border-primary/20">
               {user.name ? user.name.charAt(0).toUpperCase() : <User size={16} />}
             </div>

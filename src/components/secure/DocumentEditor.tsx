@@ -41,7 +41,7 @@ export default function DocumentEditor({
     const handleChange = (val: string) => {
         const newContents = { ...contents, [activeSection]: val };
         setContents(newContents);
-        onChange?.(activeSection, val); 
+        onChange?.(activeSection, val);
     };
 
     const handleTabClick = (id: string) => {
@@ -52,18 +52,17 @@ export default function DocumentEditor({
     const currentContent = contents[activeSection] || '';
 
     return (
-        <div className="flex flex-col h-full rounded-lg overflow-hidden border border-slate-800 bg-[#0c0c0e]">
+        <div className="flex flex-col h-full rounded-xl overflow-hidden border border-border bg-card transition-colors">
             {/* Tabs */}
-            <div className="flex overflow-x-auto bg-[#18181b] border-b border-slate-800">
+            <div className="flex overflow-x-auto bg-muted/50 border-b border-border transition-colors">
                 {DEFAULT_SECTIONS.map(section => (
                     <button
                         key={section.id}
                         onClick={() => handleTabClick(section.id)}
-                        className={`px-4 py-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-                            activeSection === section.id
-                                ? 'border-blue-500 text-blue-400 bg-slate-900'
-                                : 'border-transparent text-slate-400 hover:text-slate-200'
-                        }`}
+                        className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeSection === section.id
+                                ? 'border-primary text-primary bg-background'
+                                : 'border-transparent text-muted-foreground hover:text-foreground'
+                            }`}
                     >
                         {section.label} {section.required && '*'}
                     </button>
@@ -72,10 +71,10 @@ export default function DocumentEditor({
 
             {/* Rich Editor Area */}
             <div className="flex-1 overflow-hidden">
-                <RichTextEditor 
+                <RichTextEditor
                     key={activeSection} // Force re-render on tab change to update content
-                    content={currentContent} 
-                    onChange={handleChange} 
+                    content={currentContent}
+                    onChange={handleChange}
                     editable={!readOnly}
                     minHeight="100%"
                 />

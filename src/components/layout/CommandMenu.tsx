@@ -66,7 +66,7 @@ export function CommandMenu() {
     { title: "Assignments", icon: Calculator, action: () => navigate("/assignments"), role: "all" },
     { title: "Settings", icon: Settings, action: () => navigate("/settings"), role: "all" },
     { title: "Support", icon: Smile, action: () => navigate("/support"), role: "all" },
-    
+
     // Admin Specific
     { title: "God Console", icon: ShieldCheck, action: () => navigate("/admin"), role: "admin" },
     { title: "Manage Users", icon: User, action: () => navigate("/users"), role: "admin" },
@@ -77,14 +77,14 @@ export function CommandMenu() {
     { title: "Logout", icon: LogOut, action: () => logout(), role: "all" },
   ];
 
-  const filteredActions = actions.filter(item => 
-    item.title.toLowerCase().includes(search.toLowerCase()) && 
+  const filteredActions = actions.filter(item =>
+    item.title.toLowerCase().includes(search.toLowerCase()) &&
     (item.role === 'all' || item.role === user?.role)
   );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="p-0 overflow-hidden shadow-2xl max-w-[550px] border border-border top-[20%] translate-y-0">
+      <DialogContent className="p-0 overflow-hidden shadow-2xl max-w-[550px] border border-border top-[20%] translate-y-0 [&>button]:hidden">
         <div className="flex items-center border-b px-4" cmdk-input-wrapper="">
           <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
           <input
@@ -96,16 +96,16 @@ export function CommandMenu() {
           />
           <div className="text-xs text-muted-foreground border px-1.5 py-0.5 rounded bg-muted">ESC</div>
         </div>
-        
+
         <div className="max-h-[300px] overflow-y-auto p-2">
           {filteredActions.length === 0 && (
             <p className="p-4 text-sm text-center text-muted-foreground">No results found.</p>
           )}
-          
+
           <div className="space-y-1">
             {/* Group Logic can be added here */}
             <p className="px-2 text-xs font-medium text-muted-foreground mb-2 mt-2">Suggestions</p>
-            
+
             {filteredActions.map((item, index) => (
               <button
                 key={index}
@@ -119,10 +119,10 @@ export function CommandMenu() {
             ))}
           </div>
         </div>
-        
+
         <div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground flex justify-between">
-            <span>Pro Tip: Use arrow keys to navigate (coming soon)</span>
-            <span className="font-mono">AcadFlow v1.0</span>
+          <span>Pro Tip: Use arrow keys to navigate (coming soon)</span>
+          <span className="font-mono">AcadFlow v1.0</span>
         </div>
       </DialogContent>
     </Dialog>

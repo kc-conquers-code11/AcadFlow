@@ -43,11 +43,11 @@ export default function Batches() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [batches, setBatches] = useState<any[]>([]);
-  
+
   // Create Batch State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  
+
   // Form State
   const [formData, setFormData] = useState({
     name: '',
@@ -77,9 +77,9 @@ export default function Batches() {
           .from('batch_students')
           .select('*, batches(*, profiles:created_by(name))')
           .eq('student_id', user.id);
-          
+
         if (error) throw error;
-        
+
         const myBatches = data.map((item: any) => ({
           ...item.batches,
           joined_at: item.joined_at,
@@ -105,8 +105,8 @@ export default function Batches() {
   };
 
   const generateBatchCode = () => {
-    return Math.random().toString(36).substring(2, 5).toUpperCase() + '-' + 
-           Math.random().toString(36).substring(2, 5).toUpperCase();
+    return Math.random().toString(36).substring(2, 5).toUpperCase() + '-' +
+      Math.random().toString(36).substring(2, 5).toUpperCase();
   };
 
   const handleCreateBatch = async () => {
@@ -114,7 +114,7 @@ export default function Batches() {
       toast.error("Batch name is required");
       return;
     }
-    
+
     setCreating(true);
     try {
       const code = generateBatchCode();
@@ -132,12 +132,12 @@ export default function Batches() {
         });
 
       if (error) throw error;
-      
+
       toast.success(`Batch created! Code: ${code}`, {
         description: "Share this code with students.",
       });
       navigator.clipboard.writeText(code);
-      
+
       setIsCreateOpen(false);
       // Reset form
       setFormData({
@@ -223,27 +223,27 @@ export default function Batches() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6 min-h-[calc(100vh-4rem)]">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            {user.role === 'student' ? 'My Batches' : 'Manage Batches'}
+    <div className="flex flex-col gap-8 p-8 min-h-[calc(100vh-4rem)] bg-background/50">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b pb-6">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
+            {user.role === 'student' ? 'My Classrooms' : 'Batch Management'}
           </h1>
-          <p className="text-muted-foreground">
-            {user.role === 'student' 
-              ? 'Join classrooms to access assignments and labs.' 
-              : 'Create dynamic groups and manage student divisions.'}
+          <p className="text-lg text-muted-foreground max-w-2xl">
+            {user.role === 'student'
+              ? 'Access your course materials, assignments, and labs from here.'
+              : 'Orchestrate your academic divisions and student groups efficiently.'}
           </p>
         </div>
-        
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-3">
           {user.role === 'student' ? (
             <Dialog open={isJoinOpen} onOpenChange={setIsJoinOpen}>
               <DialogTrigger asChild>
-                <Button>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Join Batch
+                <Button size="lg" className="shadow-lg hover:shadow-xl transition-all hover:scale-105">
+                  <LogIn className="mr-2 h-5 w-5" />
+                  Join New Batch
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -259,14 +259,14 @@ export default function Batches() {
                       placeholder="e.g. XY7-A2B"
                       value={joinCode}
                       onChange={(e) => setJoinCode(e.target.value)}
-                      className="uppercase font-mono tracking-widest"
+                      className="uppercase font-mono tracking-widest text-center text-lg"
                     />
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button onClick={handleJoinBatch} disabled={joining}>
+                  <Button onClick={handleJoinBatch} disabled={joining} className="w-full">
                     {joining && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Join
+                    Join Classroom
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -274,8 +274,8 @@ export default function Batches() {
           ) : (
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
               <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
+                <Button size="lg" className="shadow-lg hover:shadow-xl transition-all hover:scale-105 bg-primary text-primary-foreground">
+                  <Plus className="mr-2 h-5 w-5" />
                   Create Batch
                 </Button>
               </DialogTrigger>
@@ -285,7 +285,7 @@ export default function Batches() {
                   <DialogDescription>Set up a new class group for assignments.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                  
+
                   {/* Batch Name */}
                   <div className="grid gap-2">
                     <Label htmlFor="name">Batch Name</Label>
@@ -293,7 +293,7 @@ export default function Batches() {
                       id="name"
                       placeholder="e.g. DBMS Lab - A1"
                       value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     />
                   </div>
 
@@ -301,9 +301,9 @@ export default function Batches() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label>Year</Label>
-                      <Select 
-                        value={formData.year} 
-                        onValueChange={(val) => setFormData({...formData, year: val})}
+                      <Select
+                        value={formData.year}
+                        onValueChange={(val) => setFormData({ ...formData, year: val })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Year" />
@@ -316,12 +316,12 @@ export default function Batches() {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="grid gap-2">
                       <Label>Division</Label>
-                      <Select 
-                        value={formData.division} 
-                        onValueChange={(val) => setFormData({...formData, division: val})}
+                      <Select
+                        value={formData.division}
+                        onValueChange={(val) => setFormData({ ...formData, division: val })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Div" />
@@ -338,9 +338,9 @@ export default function Batches() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label>Practical Batch</Label>
-                      <Select 
-                        value={formData.batch} 
-                        onValueChange={(val) => setFormData({...formData, batch: val})}
+                      <Select
+                        value={formData.batch}
+                        onValueChange={(val) => setFormData({ ...formData, batch: val })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Batch" />
@@ -355,15 +355,15 @@ export default function Batches() {
 
                     <div className="grid gap-2">
                       <Label>Semester</Label>
-                      <Select 
-                        value={formData.semester} 
-                        onValueChange={(val) => setFormData({...formData, semester: val})}
+                      <Select
+                        value={formData.semester}
+                        onValueChange={(val) => setFormData({ ...formData, semester: val })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Sem" />
                         </SelectTrigger>
                         <SelectContent>
-                          {[1,2,3,4,5,6,7,8].map(s => (
+                          {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
                             <SelectItem key={s} value={s.toString()}>Sem {s}</SelectItem>
                           ))}
                         </SelectContent>
@@ -376,14 +376,14 @@ export default function Batches() {
                     <Label>Academic Year</Label>
                     <Input
                       value={formData.academicYear}
-                      onChange={(e) => setFormData({...formData, academicYear: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
                       placeholder="2024-25"
                     />
                   </div>
 
                 </div>
                 <DialogFooter>
-                  <Button onClick={handleCreateBatch} disabled={creating}>
+                  <Button onClick={handleCreateBatch} disabled={creating} className="w-full">
                     {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Create Batch
                   </Button>
@@ -394,104 +394,108 @@ export default function Batches() {
         </div>
       </div>
 
-      <Separator className="my-2" />
-
-      {/* Content */}
+      {/* Content Grid */}
       {loading ? (
-        <div className="flex h-40 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="flex h-60 items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {batches.length === 0 ? (
-            <div className="col-span-full text-center py-12 border border-dashed rounded-xl bg-muted/20">
-              <div className="h-12 w-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
-                <BookOpen className="text-muted-foreground" />
+            <div className="col-span-full flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl bg-muted/10">
+              <div className="h-20 w-20 bg-muted/50 rounded-full flex items-center justify-center mb-6">
+                <Layers className="h-10 w-10 text-muted-foreground" />
               </div>
-              <h3 className="font-semibold text-lg text-foreground">No Batches Found</h3>
-              <p className="text-muted-foreground">
-                {user.role === 'student' ? "Join a batch to get started." : "Create your first batch above."}
+              <h3 className="font-bold text-2xl text-foreground mb-2">No Batches Found</h3>
+              <p className="text-muted-foreground text-center max-w-sm mb-6">
+                {user.role === 'student' ? "You haven't enrolled in any classrooms yet." : "Get started by creating your first batch."}
               </p>
+              {user.role !== 'student' && (
+                <Button variant="outline" onClick={() => setIsCreateOpen(true)}>Create First Batch</Button>
+              )}
             </div>
           ) : (
             batches.map((batch) => (
-              <div key={batch.id} className="group block h-full">
-                <Card className="h-full transition-all duration-200 hover:shadow-lg border-muted bg-card text-card-foreground overflow-hidden relative flex flex-col">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500/40 to-blue-500/10" />
-                  
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <Badge variant="outline" className="mb-2 font-mono text-xs bg-secondary/50">
-                          {user.role === 'student' ? 'Enrolled' : batch.code}
-                        </Badge>
-                        <CardTitle className="text-xl font-bold line-clamp-1" title={batch.name}>
-                          {batch.name}
-                        </CardTitle>
-                        <p className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                          <span className="flex items-center gap-1"><GraduationCap size={12}/> Year {batch.year}</span>
-                          <span>•</span>
-                          <span>Div {batch.division}</span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1 text-blue-600 font-semibold bg-blue-50 px-1 rounded"><Layers size={10}/> Batch {batch.batch}</span>
-                        </p>
-                      </div>
-                      
+              <div key={batch.id} className="group relative">
+                <Card className="h-full flex flex-col justify-between overflow-hidden border border-border/50 bg-background/50 hover:bg-background hover:border-border shadow-sm hover:translate-y-[-4px] hover:shadow-xl transition-all duration-300 rounded-2xl">
+
+                  <CardHeader className="pb-4 relative z-10">
+                    <div className="flex justify-between items-start mb-4">
+                      <Badge variant="secondary" className="font-mono text-xs uppercase tracking-wider px-2 py-0.5 rounded-md bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors mb-2">
+                        {batch.academic_year}
+                      </Badge>
+
                       {user.role !== 'student' && (
-                        <div className="flex flex-col gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-muted-foreground hover:text-blue-600"
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
                             onClick={(e) => { e.preventDefault(); copyToClipboard(batch.code); }}
-                            title="Copy Code"
                           >
                             <Copy className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50"
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-50"
                             onClick={(e) => { e.preventDefault(); handleDeleteBatch(batch.id); }}
-                            title="Delete Batch"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       )}
                     </div>
+
+                    <CardTitle className="text-2xl font-bold leading-tight line-clamp-2 mb-1 group-hover:text-primary transition-colors">
+                      {batch.name}
+                    </CardTitle>
+
+                    <div className="flex flex-wrap gap-2 text-xs font-medium text-muted-foreground mt-3">
+                      <span className="bg-secondary/30 px-2 py-1 rounded-md border border-secondary/50">Year {batch.year}</span>
+                      <span className="bg-secondary/30 px-2 py-1 rounded-md border border-secondary/50">Div {batch.division}</span>
+                      <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-md border border-blue-500/20">Batch {batch.batch}</span>
+                    </div>
                   </CardHeader>
 
-                  <CardContent className="flex-1">
-                    <div className="space-y-3 mt-2">
+                  <CardContent className="pb-4">
+                    <Separator className="mb-4" />
+
+                    <div className="flex items-center justify-between">
                       {user.role === 'student' ? (
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <Users className="mr-2 h-4 w-4 opacity-70" />
-                            <span>Instructor: {batch.instructor_name || 'Faculty'}</span>
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-primary-foreground text-xs font-bold">
+                            {(batch.instructor_name || 'F').charAt(0)}
                           </div>
+                          <div className="flex flex-col">
+                            <span className="text-xs text-muted-foreground">Instructor</span>
+                            <span className="text-sm font-medium">{batch.instructor_name || 'Faculty'}</span>
+                          </div>
+                        </div>
                       ) : (
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <Users className="mr-2 h-4 w-4 opacity-70" />
-                          <span>{batch.batch_students?.[0]?.count || 0} Students</span>
+                        <div className="flex items-center gap-2">
+                          <div className="h-8 w-16 rounded-md bg-muted/50 flex items-center justify-center border border-muted">
+                            <span className="font-mono text-sm font-bold">{batch.code}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">Access Code</span>
                         </div>
                       )}
-                      
-                      {user.role !== 'student' && (
-                        <div className="p-2 bg-muted/50 rounded-md border border-muted flex items-center justify-between">
-                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Code</span>
-                          <code className="text-sm font-bold font-mono text-foreground tracking-widest">{batch.code}</code>
-                        </div>
-                      )}
+
+                      <div className="text-right">
+                        {user.role !== 'student' && (
+                          <div className="flex flex-col items-end">
+                            <span className="text-2xl font-bold text-foreground">{batch.batch_students?.[0]?.count || 0}</span>
+                            <span className="text-xs text-muted-foreground">Students</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
 
-                  <CardFooter className="pt-4 border-t bg-muted/20 flex justify-between items-center">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Calendar size={12} /> {batch.academic_year}
-                    </div>
-                    <Link to={`/batches/${batch.id}`}>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full">
-                        <ArrowRight className="h-4 w-4" />
+                  <CardFooter className="pt-0 pb-6 px-6">
+                    <Link to={`/batches/${batch.id}`} className="w-full">
+                      <Button className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-all shadow-sm" variant="outline">
+                        View Details <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     </Link>
                   </CardFooter>

@@ -18,40 +18,41 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Calendar as CalendarIcon, Code2, FileText, Layers, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { Loader2, Code2, FileText, Layers, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { Badge } from '@/components/ui/badge';
 
 interface CreateAssignmentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  initialValues?: any; // Fixed: Property now exists in interface
+  initialValues?: any;
 }
 
 export function CreateAssignmentModal({ open, onOpenChange, onSuccess, initialValues }: CreateAssignmentModalProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [subjects, setSubjects] = useState<any[]>([]);
-  
+
   // Form States
   const [subjectId, setSubjectId] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [deadline, setDeadline] = useState('');
+  const [deadline, setDeadline] = useState<Date | undefined>(undefined);
   const [submissionMode, setSubmissionMode] = useState('both');
-  
+
   // Rubrics State
   const [totalPoints, setTotalPoints] = useState<number>(20);
-  const [rubrics, setRubrics] = useState<{id: number, criteria: string, max_marks: number}[]>([]);
+  const [rubrics, setRubrics] = useState<{ id: number, criteria: string, max_marks: number }[]>([]);
 
   // Targeting States
   const [targetType, setTargetType] = useState('all');
   const [selectedDivision, setSelectedDivision] = useState('');
   const [selectedBatch, setSelectedBatch] = useState('all');
 
-  // Fetch Subjects & Handle Initial Values (Edit Mode)
   useEffect(() => {
     const fetchSubjects = async () => {
       const { data } = await supabase.from('subjects').select('id, name, code');
@@ -60,17 +61,15 @@ export function CreateAssignmentModal({ open, onOpenChange, onSuccess, initialVa
 
     if (open) {
       fetchSubjects();
-      
+
       if (initialValues) {
-        // --- LOAD EXISTING DATA FOR EDITING ---
         setSubjectId(initialValues.subject_id || '');
         setTitle(initialValues.title || '');
         setDescription(initialValues.description || '');
-        
+
         if (initialValues.deadline) {
-          const date = new Date(initialValues.deadline);
-          const formattedDate = date.toISOString().slice(0, 16);
-          setDeadline(formattedDate);
+          const d = new Date(initialValues.deadline);
+          setDeadline(!isNaN(d.getTime()) ? d : undefined);
         }
 
         setSubmissionMode(initialValues.submission_mode || 'both');
@@ -85,11 +84,10 @@ export function CreateAssignmentModal({ open, onOpenChange, onSuccess, initialVa
           setTargetType('all');
         }
       } else {
-        // --- RESET FOR NEW ASSIGNMENT ---
         setSubjectId('');
         setTitle('');
         setDescription('');
-        setDeadline('');
+        setDeadline(undefined);
         setSubmissionMode('both');
         setTargetType('all');
         setSelectedDivision('');
@@ -140,7 +138,7 @@ export function CreateAssignmentModal({ open, onOpenChange, onSuccess, initialVa
         title,
         description,
         subject_id: subjectId,
-        deadline: new Date(deadline).toISOString(),
+        deadline: deadline!.toISOString(),
         created_by: user?.id,
         target_division: targetDivision,
         target_batch: targetBatch,
@@ -152,11 +150,9 @@ export function CreateAssignmentModal({ open, onOpenChange, onSuccess, initialVa
 
       let error;
       if (initialValues?.id) {
-        // UPDATE EXISTING
         const { error: err } = await supabase.from('assignments').update(payload).eq('id', initialValues.id);
         error = err;
       } else {
-        // INSERT NEW
         const { error: err } = await supabase.from('assignments').insert([payload]);
         error = err;
       }
@@ -176,16 +172,16 @@ export function CreateAssignmentModal({ open, onOpenChange, onSuccess, initialVa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 gap-0 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-2xl">
-        <DialogHeader className="px-6 py-4 border-b shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 gap-0 bg-background border-border shadow-2xl">
+        <DialogHeader className="px-6 py-4 border-b shrink-0 bg-muted/30 pr-12">
           <DialogTitle>{initialValues ? 'Edit Assignment' : 'Create New Assignment'}</DialogTitle>
         </DialogHeader>
-        
-        <ScrollArea className="flex-1 px-6 py-4 overflow-y-auto">
+
+        <ScrollArea className="flex-1 px-6 py-5 overflow-y-auto">
           <div className="space-y-6 pb-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase text-slate-500">Subject *</Label>
+                <Label className="text-xs font-bold uppercase text-muted-foreground">Subject *</Label>
                 <Select onValueChange={setSubjectId} value={subjectId}>
                   <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select Subject" />
@@ -201,23 +197,18 @@ export function CreateAssignmentModal({ open, onOpenChange, onSuccess, initialVa
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase text-slate-500">Deadline *</Label>
-                <div className="relative">
-                  <Input 
-                    type="datetime-local" 
-                    value={deadline}
-                    onChange={(e) => setDeadline(e.target.value)}
-                    className="pl-10 h-10"
-                  />
-                  <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
-                </div>
+                <Label className="text-xs font-bold uppercase text-muted-foreground">Deadline *</Label>
+                <DateTimePicker
+                  date={deadline}
+                  onChange={(d) => setDeadline(d)}
+                />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase text-slate-500">Assignment Title *</Label>
-              <Input 
-                placeholder="e.g. Logic Building & Flowcharts" 
+              <Label className="text-xs font-bold uppercase text-muted-foreground">Assignment Title *</Label>
+              <Input
+                placeholder="e.g. Logic Building & Flowcharts"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="h-10"
@@ -225,132 +216,131 @@ export function CreateAssignmentModal({ open, onOpenChange, onSuccess, initialVa
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase text-slate-500">Instructions</Label>
-              <Textarea 
-                placeholder="Briefly explain what needs to be done..." 
-                className="h-24 resize-none bg-slate-50/50 dark:bg-slate-900/50"
+              <Label className="text-xs font-bold uppercase text-muted-foreground">Instructions</Label>
+              <Textarea
+                placeholder="Briefly explain what needs to be done..."
+                className="h-24 resize-none bg-muted/30"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
-               <div className="space-y-3">
-                  <Label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Target Audience</Label>
-                  <Select value={targetType} onValueChange={setTargetType}>
-                    <SelectTrigger className="h-9 bg-white dark:bg-slate-950">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Entire Course (All Divs)</SelectItem>
-                      <SelectItem value="division">Specific Division/Batch</SelectItem>
-                    </SelectContent>
-                  </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-muted/30 rounded-xl border border-border">
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-wider">Target Audience</Label>
+                <Select value={targetType} onValueChange={setTargetType}>
+                  <SelectTrigger className="h-9 bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Entire Course (All Divs)</SelectItem>
+                    <SelectItem value="division">Specific Division/Batch</SelectItem>
+                  </SelectContent>
+                </Select>
 
-                  {targetType === 'division' && (
-                    <div className="grid grid-cols-2 gap-2 animate-in slide-in-from-top-1">
-                      <Select value={selectedDivision} onValueChange={setSelectedDivision}>
-                        <SelectTrigger className="h-9 bg-white dark:bg-slate-950"><SelectValue placeholder="Div" /></SelectTrigger>
-                        <SelectContent>{['A', 'B'].map(d => <SelectItem key={d} value={d}>Div {d}</SelectItem>)}</SelectContent>
-                      </Select>
-                      <Select value={selectedBatch} onValueChange={setSelectedBatch}>
-                        <SelectTrigger className="h-9 bg-white dark:bg-slate-950"><SelectValue placeholder="Batch" /></SelectTrigger>
-                        <SelectContent>
-                           <SelectItem value="all">All Batches</SelectItem>
-                           {['A', 'B', 'C'].map(b => <SelectItem key={b} value={`${selectedDivision}${b}`}>Batch {selectedDivision}{b}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-               </div>
-
-               <div className="space-y-3">
-                  <Label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Submission Mode</Label>
-                  <div className="flex bg-white dark:bg-slate-950 rounded-lg border p-1 gap-1">
-                    {['text', 'code', 'both'].map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => setSubmissionMode(mode)}
-                        className={`flex-1 flex flex-col items-center justify-center py-2 rounded-md transition-all ${
-                          submissionMode === mode 
-                            ? 'bg-blue-600 text-white shadow-sm' 
-                            : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        {mode === 'text' && <FileText size={14}/>}
-                        {mode === 'code' && <Code2 size={14}/>}
-                        {mode === 'both' && <Layers size={14}/>}
-                        <span className="text-[9px] uppercase mt-1 font-bold">{mode}</span>
-                      </button>
-                    ))}
+                {targetType === 'division' && (
+                  <div className="grid grid-cols-2 gap-2 animate-in slide-in-from-top-1">
+                    <Select value={selectedDivision} onValueChange={setSelectedDivision}>
+                      <SelectTrigger className="h-9 bg-background"><SelectValue placeholder="Div" /></SelectTrigger>
+                      <SelectContent>{['A', 'B'].map(d => <SelectItem key={d} value={d}>Div {d}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select value={selectedBatch} onValueChange={setSelectedBatch}>
+                      <SelectTrigger className="h-9 bg-background"><SelectValue placeholder="Batch" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Batches</SelectItem>
+                        {['A', 'B', 'C'].map(b => <SelectItem key={b} value={`${selectedDivision}${b}`}>Batch {selectedDivision}{b}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
-               </div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-wider">Submission Mode</Label>
+                <div className="flex bg-background rounded-lg border border-border p-1 gap-1">
+                  {['text', 'code', 'both'].map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setSubmissionMode(mode)}
+                      className={`flex-1 flex flex-col items-center justify-center py-2 rounded-md transition-all ${submissionMode === mode
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:bg-muted'
+                        }`}
+                    >
+                      {mode === 'text' && <FileText size={14} />}
+                      {mode === 'code' && <Code2 size={14} />}
+                      {mode === 'both' && <Layers size={14} />}
+                      <span className="text-[9px] uppercase mt-1 font-bold">{mode}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-4 pt-4 border-t">
-               <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="bg-blue-100 dark:bg-blue-900/30 p-1.5 rounded-lg"><Layers size={16} className="text-blue-600"/></div>
-                    <Label className="text-sm font-bold">Grading Rubrics</Label>
-                  </div>
-                  <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
-                    <Label className="text-[10px] font-bold uppercase text-slate-500">Total Marks:</Label>
-                    <span className="text-sm font-black text-blue-600">{totalPoints}</span>
-                  </div>
-               </div>
-               
-               <div className="space-y-3">
-                  {rubrics.map((r, index) => (
-                    <div key={r.id} className="flex gap-2 items-center group animate-in slide-in-from-left-2">
-                       <div className="flex-1 relative">
-                        <Input 
-                          placeholder="e.g. Code Efficiency" 
-                          value={r.criteria}
-                          onChange={(e) => updateRubric(r.id, 'criteria', e.target.value)}
-                          className="h-10 text-sm bg-transparent"
-                        />
-                        <span className="absolute -left-6 top-3 text-[10px] font-mono text-slate-300">{index + 1}</span>
-                       </div>
-                       
-                       <div className="relative w-20">
-                         <Input 
-                           type="number"
-                           value={r.max_marks}
-                           onChange={(e) => updateRubric(r.id, 'max_marks', Number(e.target.value))}
-                           className="h-10 text-sm pr-7 text-center font-bold"
-                         />
-                         <span className="absolute right-2 top-3 text-[10px] font-bold text-slate-400">pts</span>
-                       </div>
+            <div className="space-y-4 pt-4 border-t border-border">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="bg-primary/10 p-1.5 rounded-lg"><Layers size={16} className="text-primary" /></div>
+                  <Label className="text-sm font-bold">Grading Rubrics</Label>
+                </div>
+                <Badge variant="secondary" className="gap-1.5 px-3 py-1">
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground">Total:</span>
+                  <span className="text-sm font-black text-primary">{totalPoints}</span>
+                </Badge>
+              </div>
 
-                       <Button 
-                         variant="ghost" 
-                         size="icon" 
-                         className="h-10 w-10 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" 
-                         onClick={() => removeRubric(r.id)}
-                       >
-                          <Trash2 size={16} />
-                       </Button>
+              <div className="space-y-3">
+                {rubrics.map((r, index) => (
+                  <div key={r.id} className="flex gap-2 items-center group animate-in slide-in-from-left-2">
+                    <div className="flex-1 relative">
+                      <Input
+                        placeholder="e.g. Code Efficiency"
+                        value={r.criteria}
+                        onChange={(e) => updateRubric(r.id, 'criteria', e.target.value)}
+                        className="h-10 text-sm"
+                      />
+                      <span className="absolute -left-6 top-3 text-[10px] font-mono text-muted-foreground/50">{index + 1}</span>
                     </div>
-                  ))}
 
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={addRubric} 
-                    className="w-full border-dashed border-2 h-10 text-slate-500 hover:text-blue-600 hover:border-blue-400 bg-transparent"
-                  >
-                     <Plus size={14} className="mr-2" /> Add Criteria
-                  </Button>
-               </div>
+                    <div className="relative w-20">
+                      <Input
+                        type="number"
+                        value={r.max_marks}
+                        onChange={(e) => updateRubric(r.id, 'max_marks', Number(e.target.value))}
+                        className="h-10 text-sm pr-7 text-center font-bold"
+                      />
+                      <span className="absolute right-2 top-3 text-[10px] font-bold text-muted-foreground">pts</span>
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10"
+                      onClick={() => removeRubric(r.id)}
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
+                ))}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addRubric}
+                  className="w-full border-dashed border-2 h-10 text-muted-foreground hover:text-primary hover:border-primary/50 bg-transparent"
+                >
+                  <Plus size={14} className="mr-2" /> Add Criteria
+                </Button>
+              </div>
             </div>
           </div>
         </ScrollArea>
 
-        <DialogFooter className="px-6 py-4 border-t shrink-0 bg-slate-50 dark:bg-slate-900/50">
+        <DialogFooter className="px-6 py-4 border-t shrink-0 bg-muted/30">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Discard</Button>
-          <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white min-w-[140px]">
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4"/>}
+          <Button onClick={handleSubmit} disabled={loading} className="min-w-[140px]">
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
             {initialValues ? 'Update Assignment' : 'Post Assignment'}
           </Button>
         </DialogFooter>

@@ -299,3 +299,28 @@
   background-color: color-mix(in oklch, var(--destructive), transparent 90%);
   color: var(--destructive);
 }
+
+/* ═══ Theme Transition (Expanding Circle) ═══ */
+::view-transition-group(root) {
+  animation-duration: 0.5s;
+  animation-timing-function: ease-in-out;
+}
+
+::view-transition-old(root) {
+  animation: none;
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  animation: circle-expand 0.5s ease-in-out;
+  z-index: 9999;
+}
+
+@keyframes circle-expand {
+  from {
+    clip-path: circle(0px at var(--theme-x, 50%) var(--theme-y, 50%));
+  }
+  to {
+    clip-path: circle(var(--theme-r, 150vmax) at var(--theme-x, 50%) var(--theme-y, 50%));
+  }
+}

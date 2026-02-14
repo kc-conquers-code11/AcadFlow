@@ -260,19 +260,19 @@ export default function BatchDashboard() {
   if (loading) return <div className="flex h-screen items-center justify-center bg-background text-foreground"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto min-h-screen bg-muted/40 transition-colors duration-200">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">{batchDetails?.name}</h1>
+    <div className="p-8 space-y-8 max-w-7xl mx-auto min-h-screen bg-background transition-colors duration-200">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-border pb-6">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-extrabold tracking-tight text-foreground">{batchDetails?.name}</h1>
           <div className="flex items-center gap-2 mt-2">
-            <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 text-xs px-2 py-0.5 rounded font-mono border border-blue-200 dark:border-blue-800">Div {batchDetails?.division}</span>
-            <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 text-xs px-2 py-0.5 rounded font-mono border border-indigo-200 dark:border-indigo-800">Batch {batchDetails?.batch}</span>
+            <span className="bg-primary/10 text-primary text-xs px-2.5 py-1 rounded-md font-mono border border-primary/20 font-medium">Div {batchDetails?.division}</span>
+            <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs px-2.5 py-1 rounded-md font-mono border border-blue-500/20 font-medium">Batch {batchDetails?.batch}</span>
           </div>
         </div>
         {isTeacher && (
           <div className="flex gap-2">
-            <Button variant="outline" onClick={openImportModal} className="shadow-sm border-dashed border-slate-400"><Copy className="mr-2 h-4 w-4" /> Import</Button>
-            <Button onClick={() => { setEditingRow(null); setModalOpen(true); }} className="shadow-sm"><Plus className="mr-2 h-4 w-4" /> Create Practical</Button>
+            <Button variant="outline" onClick={openImportModal} className="shadow-sm border-dashed border-border hover:bg-muted"><Copy className="mr-2 h-4 w-4" /> Import</Button>
+            <Button onClick={() => { setEditingRow(null); setModalOpen(true); }} className="shadow-lg hover:shadow-xl transition-all"><Plus className="mr-2 h-4 w-4" /> Create Practical</Button>
           </div>
         )}
       </header>
@@ -290,21 +290,21 @@ export default function BatchDashboard() {
         </div>
       )}
 
-      <Tabs defaultValue="experiments" className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border pb-1">
-          <TabsList className="bg-transparent p-0 gap-2">
-            <TabsTrigger value="experiments" className="data-[state=active]:bg-background data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-border gap-2 px-4"><LayoutDashboard size={16} /> Experiments</TabsTrigger>
-            {isTeacher && <TabsTrigger value="students" className="data-[state=active]:bg-background data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-border gap-2 px-4"><Users size={16} /> People / Students</TabsTrigger>}
-            {isTeacher && <TabsTrigger value="analytics" className="data-[state=active]:bg-background data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-border gap-2 px-4"><BarChart3 size={16} /> Analysis</TabsTrigger>}
+      <Tabs defaultValue="experiments" className="space-y-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <TabsList className="bg-muted/50 p-1 rounded-xl gap-1">
+            <TabsTrigger value="experiments" className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg gap-2 px-5 py-2.5 text-sm font-medium transition-all"><LayoutDashboard size={16} /> Experiments</TabsTrigger>
+            {isTeacher && <TabsTrigger value="students" className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg gap-2 px-5 py-2.5 text-sm font-medium transition-all"><Users size={16} /> People / Students</TabsTrigger>}
+            {isTeacher && <TabsTrigger value="analytics" className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg gap-2 px-5 py-2.5 text-sm font-medium transition-all"><BarChart3 size={16} /> Analysis</TabsTrigger>}
           </TabsList>
         </div>
 
         {/* --- 1. EXPERIMENTS TAB --- */}
         <TabsContent value="experiments" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-          <div className="flex items-center gap-4 max-w-sm">
+          <div className="flex items-center gap-4 max-w-md">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search experiments..." className="pl-9 bg-background border-input" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              <Input placeholder="Search experiments..." className="pl-9 bg-card border-border rounded-xl" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
           </div>
 
@@ -320,37 +320,36 @@ export default function BatchDashboard() {
         {/* --- 2. STUDENTS TAB (UPDATED) --- */}
         {isTeacher && (
           <TabsContent value="students" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-center gap-4 max-w-sm">
+            <div className="flex items-center gap-4 max-w-md">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search students..." className="pl-9 bg-background border-input" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                <Input placeholder="Search students..." className="pl-9 bg-card border-border rounded-xl" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
               </div>
             </div>
 
-            <div className="border border-border rounded-lg overflow-hidden bg-white shadow-sm">
+            <div className="border border-border rounded-xl overflow-hidden bg-card shadow-sm">
               <Table>
-                <TableHeader className="bg-slate-50">
+                <TableHeader className="bg-muted/50">
                   <TableRow>
-                    <TableHead className="w-24">Enrollment No</TableHead> {/* Swapped Header */}
-                    <TableHead>Name</TableHead>
-                    <TableHead>Roll No</TableHead> {/* Swapped Header */}
-                    <TableHead className="text-right">Action</TableHead>
+                    <TableHead className="w-28 text-sm font-bold">Enrollment No</TableHead>
+                    <TableHead className="text-sm font-bold">Name</TableHead>
+                    <TableHead className="text-sm font-bold">Roll No</TableHead>
+                    <TableHead className="text-right text-sm font-bold">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredStudents.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No students found.</TableCell>
+                      <TableCell colSpan={4} className="text-center py-12 text-muted-foreground text-sm">No students found.</TableCell>
                     </TableRow>
                   ) : (
                     filteredStudents.map(student => (
-                      <TableRow key={student.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => { setSelectedStudentForHistory(student); setHistoryModalOpen(true); }}>
-                        {/* Display Enrollment in first column, Roll No in third */}
-                        <TableCell className="font-mono font-medium">{student.enrollment_number || '-'}</TableCell>
-                        <TableCell className="font-medium text-blue-600">{student.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{student.roll_number || '-'}</TableCell>
-                        <TableCell className="text-right">
-                          <Button size="sm" variant="ghost">View History</Button>
+                      <TableRow key={student.id} className="hover:bg-muted/30 cursor-pointer transition-colors" onClick={() => { setSelectedStudentForHistory(student); setHistoryModalOpen(true); }}>
+                        <TableCell className="font-mono font-semibold text-sm py-4">{student.enrollment_number || '-'}</TableCell>
+                        <TableCell className="font-medium text-primary text-sm py-4">{student.name}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm py-4">{student.roll_number || '-'}</TableCell>
+                        <TableCell className="text-right py-4">
+                          <Button size="sm" variant="ghost" className="text-sm hover:bg-muted">View History</Button>
                         </TableCell>
                       </TableRow>
                     ))
@@ -371,16 +370,16 @@ export default function BatchDashboard() {
 
       {/* IMPORT MODAL */}
       {importModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-5 border-b border-slate-100 dark:border-slate-800">
-              <h2 className="text-lg font-bold flex items-center gap-2"><Copy size={20} className="text-blue-600" /> Import Experiments</h2>
-              <button onClick={() => setImportModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="bg-background w-full max-w-2xl rounded-2xl shadow-2xl border border-border flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-border">
+              <h2 className="text-lg font-bold flex items-center gap-2 text-foreground"><Copy size={20} className="text-primary" /> Import Experiments</h2>
+              <button onClick={() => setImportModalOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors"><X size={20} /></button>
             </div>
-            <div className="p-5 flex-1 overflow-y-auto space-y-4">
+            <div className="p-6 flex-1 overflow-y-auto space-y-5">
               <div>
-                <label className="text-sm font-medium mb-1.5 block text-slate-700 dark:text-slate-300">Select Source Batch</label>
-                <select className="w-full p-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-background text-sm" value={selectedSourceBatch} onChange={(e) => handleSourceBatchSelect(e.target.value)}>
+                <label className="text-sm font-medium mb-1.5 block text-foreground">Select Source Batch</label>
+                <select className="w-full p-2.5 rounded-lg border border-border bg-card text-sm text-foreground" value={selectedSourceBatch} onChange={(e) => handleSourceBatchSelect(e.target.value)}>
                   <option value="">-- Choose a Batch --</option>
                   {availableBatches.map(b => (
                     <option key={b.id} value={b.id}>{b.name} (Div {b.division} - Batch {b.batch})</option>
@@ -390,20 +389,20 @@ export default function BatchDashboard() {
               {selectedSourceBatch && (
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Select Experiments</label>
-                    <button onClick={() => setSelectedImportIds(selectedImportIds.length === sourcePracticals.length ? [] : sourcePracticals.map(p => p.id))} className="text-xs text-blue-600 hover:underline font-medium">
+                    <label className="text-sm font-medium text-foreground">Select Experiments</label>
+                    <button onClick={() => setSelectedImportIds(selectedImportIds.length === sourcePracticals.length ? [] : sourcePracticals.map(p => p.id))} className="text-xs text-primary hover:underline font-medium">
                       {selectedImportIds.length === sourcePracticals.length ? 'Deselect All' : 'Select All'}
                     </button>
                   </div>
-                  <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
+                  <div className="border border-border rounded-xl overflow-hidden max-h-[300px] overflow-y-auto">
                     {sourcePracticals.map(p => (
-                      <div key={p.id} className={cn("flex items-center gap-3 p-3 border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors", selectedImportIds.includes(p.id) && "bg-blue-50/50 dark:bg-blue-900/10")} onClick={() => toggleImportSelection(p.id)}>
-                        <div className={cn("text-slate-400", selectedImportIds.includes(p.id) && "text-blue-600")}>
+                      <div key={p.id} className={cn("flex items-center gap-3 p-3.5 border-b border-border last:border-0 hover:bg-muted/50 cursor-pointer transition-colors", selectedImportIds.includes(p.id) && "bg-primary/5")} onClick={() => toggleImportSelection(p.id)}>
+                        <div className={cn("text-muted-foreground", selectedImportIds.includes(p.id) && "text-primary")}>
                           {selectedImportIds.includes(p.id) ? <CheckSquare size={18} /> : <Square size={18} />}
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{p.title}</p>
-                          <p className="text-xs text-slate-500">Exp {p.experiment_number} • {p.total_points} Points</p>
+                          <p className="text-sm font-medium text-foreground">{p.title}</p>
+                          <p className="text-xs text-muted-foreground">Exp {p.experiment_number} • {p.total_points} Points</p>
                         </div>
                       </div>
                     ))}
@@ -411,7 +410,7 @@ export default function BatchDashboard() {
                 </div>
               )}
             </div>
-            <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 flex justify-end gap-3 rounded-b-xl">
+            <div className="p-6 border-t border-border bg-muted/30 flex justify-end gap-3 rounded-b-2xl">
               <Button variant="ghost" onClick={() => setImportModalOpen(false)}>Cancel</Button>
               <Button onClick={executeImport} disabled={importing || selectedImportIds.length === 0}>{importing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Import</Button>
             </div>
