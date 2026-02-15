@@ -33,7 +33,7 @@ import {
 // --- Visual Components ---
 
 const GridPattern = () => (
-  <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.2]" />
+  <div className="fixed inset-0 -z-10 h-full w-full bg-background bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.2]" />
 );
 
 const FloatingBadge = ({ icon: Icon, label, delay }: { icon: any, label: string, delay: number }) => (
@@ -41,7 +41,7 @@ const FloatingBadge = ({ icon: Icon, label, delay }: { icon: any, label: string,
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay, duration: 0.5 }}
-    className="flex items-center gap-2 px-3 py-1.5 bg-card/80 backdrop-blur-sm border border-border/50 rounded-full shadow-sm text-xs font-medium text-muted-foreground"
+    className="flex items-center gap-2 px-3 py-1.5 bg-card/80 backdrop-blur-sm border border-border/50 rounded-full shadow-sm text-xs font-medium text-muted-foreground whitespace-nowrap"
   >
     <Icon size={14} className="text-primary" />
     {label}
@@ -62,7 +62,7 @@ const CloudflareWidget = ({ onVerify, isHuman }: { onVerify: (val: boolean) => v
   const handleClick = () => {
     if (status !== 'idle') return;
     setStatus('verifying');
-
+    
     // Simulate network delay
     setTimeout(() => {
       setStatus('success');
@@ -73,7 +73,7 @@ const CloudflareWidget = ({ onVerify, isHuman }: { onVerify: (val: boolean) => v
   return (
     <div className="w-full h-[65px] bg-[#f9f9f9] dark:bg-[#1a1a1a] border border-[#d6d6d6] dark:border-[#333] rounded-[4px] flex items-center justify-between px-3 mt-4 mb-2 select-none shadow-sm transition-colors">
       <div className="flex items-center gap-3">
-        <div
+        <div 
           onClick={handleClick}
           className={cn(
             "w-[28px] h-[28px] bg-white dark:bg-[#222] border border-[#c1c1c1] dark:border-[#444] rounded-[2px] cursor-pointer flex items-center justify-center transition-all",
@@ -113,7 +113,7 @@ export default function Login() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isHuman, setIsHuman] = useState(false);
+  const [isHuman, setIsHuman] = useState(false); 
 
   // Hooks
   const { login, signup } = useAuth();
@@ -124,7 +124,7 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     // MANDATORY CLOUDFLARE CHECK
     if (!isHuman) {
       toast.error("Verification Required", {
@@ -166,11 +166,12 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen text-foreground flex flex-col relative overflow-hidden font-sans selection:bg-primary/20 selection:text-primary">
+    // Changed: min-h-screen + overflow-x-hidden (allows vertical scrolling on small screens)
+    <div className="min-h-screen text-foreground flex flex-col relative overflow-x-hidden font-sans selection:bg-primary/20 selection:text-primary">
       <GridPattern />
 
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="fixed inset-0 pointer-events-none"
         style={{
           backgroundImage: `radial-gradient(125% 125% at 50% 10%, var(--background) 40%, var(--primary) 100%)`,
           backgroundSize: "100% 100%",
@@ -179,7 +180,7 @@ export default function Login() {
       />
 
       {/* Navigation / Header */}
-      <nav className="w-full max-w-7xl mx-auto p-6 flex items-center justify-between relative z-10">
+      <nav className="w-full max-w-7xl mx-auto p-6 flex items-center justify-between relative z-10 shrink-0">
         <div className="flex items-center gap-2">
           <div className="h-9 w-9 bg-primary text-primary-foreground rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
             <GraduationCap size={20} strokeWidth={2.5} />
@@ -231,19 +232,19 @@ export default function Login() {
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col md:flex-row items-center justify-center max-w-6xl mx-auto w-full px-6 gap-12 lg:gap-24 relative z-10">
+      {/* Main Content - Flex changes for better responsiveness */}
+      <main className="flex-1 flex flex-col lg:flex-row items-center justify-center max-w-7xl mx-auto w-full px-6 py-12 gap-10 lg:gap-20 relative z-10">
 
         {/* Left: The "Pitch" */}
-        <div className="flex-1 space-y-8 text-center md:text-left pt-10 md:pt-0">
+        <div className="flex-1 space-y-8 text-center lg:text-left">
           <div className="space-y-4">
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-5xl md:text-6xl z-20 font-bold tracking-tight text-foreground leading-[1.1] font-serif"
+              className="text-4xl md:text-5xl lg:text-6xl z-20 font-bold tracking-tight text-foreground leading-[1.1] font-serif"
             >
               Academic rigour <br />
-              <span className="text-primary italic flex items-center justify-center md:justify-start gap-2 flex-wrap">
+              <span className="text-primary italic flex items-center justify-center lg:justify-start gap-2 flex-wrap">
                 meets
                 <RotatingText
                   texts={['modern', 'simple', 'powerful']}
@@ -264,14 +265,14 @@ export default function Login() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="text-lg text-muted-foreground max-w-lg mx-auto md:mx-0 leading-relaxed font-sans"
+              className="text-base md:text-lg text-muted-foreground max-w-lg mx-auto lg:mx-0 leading-relaxed font-sans"
             >
               The centralized platform for assignments, practicals, and record keeping.
               Designed for focus, built for integrity.
             </motion.p>
           </div>
 
-          <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+          <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
             <FloatingBadge icon={ShieldCheck} label="Audit Ready" delay={0.3} />
             <FloatingBadge icon={Microscope} label="Lab Integrated" delay={0.4} />
             <FloatingBadge icon={BookOpen} label="Paperless" delay={0.5} />
@@ -283,12 +284,12 @@ export default function Login() {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.4 }}
-          className="w-full max-w-[420px] relative group"
+          className="w-full max-w-[400px] relative group shrink-0"
         >
           <div className="absolute -inset-0.5 bg-gradient-to-b from-border/50 to-transparent rounded-2xl blur opacity-50 group-hover:opacity-100 transition duration-500" />
 
-          <div className="relative bg-card rounded-xl shadow-xl p-8 border border-border">
-            <div className="mb-8">
+          <div className="relative bg-card rounded-xl shadow-xl p-6 md:p-8 border border-border">
+            <div className="mb-6">
               <h2 className="text-xl font-bold text-card-foreground">
                 {isLogin ? "Sign in" : "Create Account"}
               </h2>
@@ -297,7 +298,7 @@ export default function Login() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <AnimatePresence mode='wait'>
                 {!isLogin && (
                   <motion.div
@@ -448,7 +449,7 @@ export default function Login() {
               </Button>
             </form>
 
-            <div className="mt-8 pt-6 border-t border-border text-center">
+            <div className="mt-6 pt-6 border-t border-border text-center">
               <p className="text-sm text-muted-foreground">
                 {isLogin ? "First time here? " : "Already registered? "}
                 <button
@@ -510,7 +511,7 @@ export default function Login() {
       </main>
 
       {/* Footer */}
-      <footer className="w-full p-6 text-center text-xs text-muted-foreground font-medium relative z-10">
+      <footer className="w-full p-6 text-center text-xs text-muted-foreground font-medium relative z-10 shrink-0">
         &copy; 2026 PVPP College of Engineering. All rights reserved - Powered by{' '}
         <span
           className="text-primary cursor-pointer hover:underline underline-offset-2 transition-all font-bold"
