@@ -58,8 +58,7 @@ const teacherItems: NavItem[] = [
 ];
 
 const adminItems: NavItem[] = [
-  { title: 'God Console', url: '/admin', icon: ShieldCheck, roles: ['admin'] },
-  { title: 'Users', url: '/users', icon: UserCog, roles: ['admin'] },
+  { title: 'MASTER Console', url: '/admin', icon: ShieldCheck, roles: ['admin'] },
   { title: 'Global Reports', url: '/reports', icon: BarChart3, roles: ['admin'] },
 ];
 

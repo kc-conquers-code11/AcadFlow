@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+// Removed axios import to avoid confusion
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -46,7 +46,9 @@ import WebTerminal, { WebTerminalRef } from '@/components/secure/WebTerminal';
 // --- API CONFIG ---
 const PISTON_API = "https://emkc.org/api/v2/piston/execute";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+
+// Get API Key (Fallback support)
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY_1 || import.meta.env.VITE_GROQ_API_KEY || "";
 
 // --- LANGUAGE CONFIG ---
 const LANGUAGES = [
@@ -81,7 +83,7 @@ export default function EditorPage() {
     // Dialog States
     const [linkDialogOpen, setLinkDialogOpen] = useState(false);
     const [vivaDialogOpen, setVivaDialogOpen] = useState(false);
-    const [previewOpen, setPreviewOpen] = useState(false); // NEW: Report Preview State
+    const [previewOpen, setPreviewOpen] = useState(false);
 
     // Security & Violation States
     const [violationLogs, setViolationLogs] = useState<any[]>([]);
@@ -227,7 +229,7 @@ export default function EditorPage() {
         fetchData();
     }, [practicalId, user]);
 
-    // --- API: GENERATE VIVA ---
+    // --- API: GENERATE VIVA (Using Native Fetch) ---
     const generateVivaQuestions = async () => {
         setVivaLoading(true);
         setVivaDialogOpen(true);
@@ -238,24 +240,33 @@ export default function EditorPage() {
       `;
 
         try {
-            const response = await axios.post(
-                GROQ_API_URL,
-                {
+            const response = await fetch(GROQ_API_URL, {
+                method: "POST",
+                credentials: 'omit', // FIX for 401
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${GROQ_API_KEY}`
+                },
+                body: JSON.stringify({
                     model: "llama-3.3-70b-versatile",
                     messages: [
                         { role: "system", content: "You are an external examiner. Generate 3 multiple-choice questions (MCQs) based strictly on the provided code logic and theory. Return JSON format: { 'questions': [{ 'id': 1, 'text': 'Question?', 'options': ['A', 'B', 'C', 'D'], 'correctAnswer': 'The Correct Option Text' }] }." },
                         { role: "user", content: context }
                     ],
                     response_format: { type: "json_object" }
-                },
-                { headers: { "Authorization": `Bearer ${GROQ_API_KEY}` } }
-            );
+                })
+            });
 
-            const result = JSON.parse(response.data.choices[0].message.content);
+            if(!response.ok) throw new Error("Viva Generation Failed");
+
+            const data = await response.json();
+            const result = JSON.parse(data.choices[0].message.content);
+            
             if (result.questions && Array.isArray(result.questions)) {
                 setVivaQuestions(result.questions.slice(0, 3));
             }
         } catch (error) {
+            console.error(error);
             toast.error("Failed to generate Viva. Please try again.");
             setVivaDialogOpen(false);
         } finally {
@@ -266,7 +277,9 @@ export default function EditorPage() {
     const handleVivaSubmit = async () => {
         let correctCount = 0;
         vivaQuestions.forEach(q => {
-            if (vivaAnswers[q.id] === q.correctAnswer) correctCount++;
+            if (vivaAnswers[q.id] === q.correctAnswer) {
+                correctCount++;
+            }
         });
 
         if (correctCount >= 2) {
@@ -281,21 +294,33 @@ export default function EditorPage() {
         }
     };
 
-    // --- EXECUTION LOGIC (FIXED 401 ERROR) ---
+    // --- EXECUTION LOGIC (NUCLEAR FIX: Native Fetch + credentials: 'omit') ---
     const runCodeOnPiston = async (langId: string, code: string) => {
         const config = LANGUAGES.find(l => l.id === langId) || LANGUAGES[0];
+        
         try {
-            // 🔥 FIXED: Remove Authorization header specifically for Piston call
-            const response = await axios.post(PISTON_API, {
-                language: config.piston,
-                version: config.ver,
-                files: [{ content: code }]
-            }, {
+            // Using NATIVE FETCH instead of Axios to ensure NO global headers are sent
+            const response = await fetch(PISTON_API, {
+                method: "POST",
+                credentials: 'omit', // THIS IS THE KEY FIX
                 headers: {
-                    Authorization: undefined // This removes the global auth header for this request
-                }
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                body: JSON.stringify({
+                    language: config.piston,
+                    version: config.ver,
+                    files: [{ content: code }]
+                })
             });
-            return response.data.run;
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`Execution Failed: ${response.status} ${errText}`);
+            }
+
+            const data = await response.json();
+            return data.run;
         } catch (error: any) {
             return { stderr: "Compiler Connection Error: " + error.message, stdout: "" };
         }
@@ -305,12 +330,21 @@ export default function EditorPage() {
         if (!GROQ_API_KEY) return 0;
         const prompt = `Act as a strict Computer Science Professor. Task: ${taskTitle}. Desc: ${taskDesc}. Code: ${code}. Output: ${output}. Analyze logic & correctness. Return ONLY valid JSON: { "score": number (0-100) }`;
         try {
-            const response = await axios.post(GROQ_API_URL, {
-                model: "llama-3.3-70b-versatile",
-                messages: [{ role: "user", content: prompt }],
-                response_format: { type: "json_object" }
-            }, { headers: { "Authorization": `Bearer ${GROQ_API_KEY}` } });
-            const result = JSON.parse(response.data.choices[0].message.content);
+            const response = await fetch(GROQ_API_URL, {
+                method: "POST",
+                credentials: 'omit', // FIX for 401
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${GROQ_API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: "llama-3.3-70b-versatile",
+                    messages: [{ role: "user", content: prompt }],
+                    response_format: { type: "json_object" }
+                })
+            });
+            const data = await response.json();
+            const result = JSON.parse(data.choices[0].message.content);
             return result.score || 0;
         } catch { return 0; }
     };
@@ -326,6 +360,7 @@ export default function EditorPage() {
         let output = result.stdout;
         let error = result.stderr;
 
+        // --- REALISTIC TASM SIMULATION ---
         if (selectedLang === 'asm') {
             if (error) {
                 terminalRef.current?.run(`\nTASM Assembler Version 4.1`, 'system');
@@ -485,7 +520,7 @@ export default function EditorPage() {
     if (isReadOnly) {
         return (
             <div className="flex flex-col h-screen bg-background overflow-hidden transition-colors">
-                {/* READ ONLY MODE - SAME AS BEFORE BUT WITH PRINT BUTTON IN HEADER */}
+                {/* READ ONLY MODE */}
                 <header className="h-14 bg-card border-b border-border flex items-center justify-between px-6 shadow-sm">
                     <Button variant="ghost" onClick={() => navigate(-1)}><ChevronLeft className="mr-2 h-4 w-4" /> Back</Button>
                     <h1 className="font-bold text-foreground text-lg flex items-center gap-2">
@@ -497,7 +532,18 @@ export default function EditorPage() {
                         <Button onClick={handlePrint} variant="outline" size="sm"><Download className="mr-2 h-4 w-4" /> Download Report</Button>
                     </div>
                 </header>
-                {/* ... (Existing Read Only Body) ... */}
+                {/* ... (Existing Read Only Body with PDF Preview logic) ... */}
+                <div className="flex-1 overflow-y-auto p-8 flex justify-center bg-muted/30">
+                    <div id="printable-area" className="w-[210mm] min-h-[297mm] bg-card text-foreground shadow-xl rounded-xl p-[15mm] flex flex-col border border-border">
+                        <div className="mb-6 border-b-2 border-foreground/20 pb-2"><img src="/images/letterhead.jpg" alt="Letterhead" className="w-full max-h-32 object-contain mx-auto" onError={(e) => { e.currentTarget.style.display = 'none' }} /></div>
+                        {vivaCleared && <div className="absolute top-[15mm] right-[15mm] border-2 border-green-600 text-green-700 dark:text-green-400 font-bold px-3 py-1 text-xs uppercase rounded rotate-12 opacity-80 flex items-center gap-1"><BrainCircuit size={14} /> Viva Cleared ({vivaScore}/3)</div>}
+                        <div className="flex-1 space-y-6">
+                            {Object.entries(docSections).map(([key, val]) => (<div key={key}><h4 className="text-sm font-bold text-muted-foreground uppercase mb-1">{key}</h4><div className="prose prose-sm max-w-none text-foreground" dangerouslySetInnerHTML={{ __html: val }} /></div>))}
+                            {codeContent && (<div><h4 className="text-sm font-bold text-muted-foreground uppercase mb-1">Source Code</h4><div className="bg-muted p-4 rounded-lg border border-border font-mono text-xs whitespace-pre-wrap">{codeContent}</div></div>)}
+                            {executionOutput && (<div><h4 className="text-sm font-bold text-muted-foreground uppercase mb-1">Execution Output</h4><div className="bg-zinc-900 text-green-400 p-4 rounded-lg font-mono text-xs whitespace-pre-wrap">{executionOutput}</div></div>)}
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -743,4 +789,4 @@ export default function EditorPage() {
             </Dialog>
         </div>
     );
-}
+}   
