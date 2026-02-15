@@ -52,7 +52,7 @@ const GROQ_API_KEYS = [
     import.meta.env.VITE_GROQ_API_KEY_2,
     import.meta.env.VITE_GROQ_API_KEY_3,
     import.meta.env.VITE_GROQ_API_KEY,
-    "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" // Fallback
+    // Fallback
 ].filter(Boolean);
 
 // --- HELPER: Fetch with Key Rotation ---
