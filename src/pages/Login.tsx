@@ -71,7 +71,7 @@ const CloudflareWidget = ({ onVerify, isHuman }: { onVerify: (val: boolean) => v
   const handleClick = () => {
     if (status !== 'idle') return;
     setStatus('verifying');
-    
+
     // Simulate network delay
     setTimeout(() => {
       setStatus('success');
@@ -82,7 +82,7 @@ const CloudflareWidget = ({ onVerify, isHuman }: { onVerify: (val: boolean) => v
   return (
     <div className="w-full h-[65px] bg-[#f9f9f9] dark:bg-[#1a1a1a] border border-[#d6d6d6] dark:border-[#333] rounded-[4px] flex items-center justify-between px-3 mt-4 mb-2 select-none shadow-sm transition-colors">
       <div className="flex items-center gap-3">
-        <div 
+        <div
           onClick={handleClick}
           className={cn(
             "w-[28px] h-[28px] bg-white dark:bg-[#222] border border-[#c1c1c1] dark:border-[#444] rounded-[2px] cursor-pointer flex items-center justify-center transition-all",
@@ -122,7 +122,7 @@ export default function Login() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isHuman, setIsHuman] = useState(false); 
+  const [isHuman, setIsHuman] = useState(false);
 
   // Hooks
   const { login, signup } = useAuth();
@@ -133,7 +133,7 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // MANDATORY CLOUDFLARE CHECK
     if (!isHuman) {
       toast.error("Verification Required", {
@@ -256,33 +256,33 @@ export default function Login() {
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
               <SheetHeader>
                 <SheetTitle className="text-left font-display text-xl font-bold flex items-center gap-2">
-                   <div className="h-7 w-7 bg-primary text-primary-foreground rounded-lg flex items-center justify-center">
+                  <div className="h-7 w-7 bg-primary text-primary-foreground rounded-lg flex items-center justify-center">
                     <GraduationCap size={16} strokeWidth={2.5} />
                   </div>
                   AcadFlow
                 </SheetTitle>
               </SheetHeader>
-              
+
               <div className="flex flex-col gap-6 mt-8">
                 <div className="flex items-center justify-between p-4 bg-muted/40 rounded-lg border border-border">
-                   <span className="text-sm font-medium">Appearance</span>
-                   <Button variant="outline" size="sm" onClick={toggleTheme} className="gap-2 h-8">
-                     {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
-                     {theme === "dark" ? "Light Mode" : "Dark Mode"}
-                   </Button>
+                  <span className="text-sm font-medium">Appearance</span>
+                  <Button variant="outline" size="sm" onClick={toggleTheme} className="gap-2 h-8">
+                    {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+                    {theme === "dark" ? "Light Mode" : "Dark Mode"}
+                  </Button>
                 </div>
 
                 <div className="space-y-1">
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     className="w-full justify-start text-base font-normal h-12"
                     onClick={() => navigate('/privacy')}
                   >
                     <BookOpen size={18} className="mr-3 text-muted-foreground" />
                     Documentation
                   </Button>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     className="w-full justify-start text-base font-normal h-12"
                     onClick={() => navigate('/support')}
                   >
@@ -293,7 +293,7 @@ export default function Login() {
               </div>
 
               <div className="absolute bottom-6 left-6 text-xs text-muted-foreground">
-                 v2.4.0 (Stable)
+                v2.4.0 (Stable)
               </div>
             </SheetContent>
           </Sheet>
@@ -517,7 +517,7 @@ export default function Login() {
               </Button>
             </form>
 
-            <div className="mt-6 pt-6 border-t border-border text-center">
+            {/* <div className="mt-6 pt-6 border-t border-border text-center">
               <p className="text-sm text-muted-foreground">
                 {isLogin ? "First time here? " : "Already registered? "}
                 <button
@@ -531,7 +531,7 @@ export default function Login() {
                   {isLogin ? "Create an account" : "Sign in"}
                 </button>
               </p>
-            </div>
+            </div> */}
           </div>
 
           {/* THE "BHARI" SECURITY BADGE */}
