@@ -9,7 +9,9 @@ import {
   Server, 
   UserCheck, 
   Fingerprint, 
-  Building 
+  Building,
+  Code2,
+  ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -82,7 +84,7 @@ export default function PrivacyPolicy() {
             </p>
           </section>
 
-          {/* Section 2: Data Collection (Grid Layout) */}
+          {/* Section 2: Data Collection */}
           <section className="space-y-6">
             <h2 className="text-2xl font-bold flex items-center gap-2 text-foreground">
               <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600">
@@ -155,7 +157,7 @@ export default function PrivacyPolicy() {
           </section>
 
           {/* Section 4: Contact */}
-          <section className="space-y-4 pb-10">
+          <section className="space-y-4">
             <h2 className="text-2xl font-bold flex items-center gap-2 text-foreground">
               <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600">
                 <Mail size={20} /> 
@@ -174,6 +176,70 @@ export default function PrivacyPolicy() {
               >
                 <Mail size={16} /> Contact Privacy Team
               </a>
+            </div>
+          </section>
+
+          <Separator className="my-8" />
+{/* Section 5: Developer Credits */}
+          <section className="space-y-6 pb-20">
+             <h2 className="text-2xl font-bold flex items-center gap-2 text-foreground">
+              <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600">
+                <Code2 size={20} /> 
+              </div>
+              5. Engineering Team
+            </h2>
+            <p className="text-muted-foreground leading-relaxed">
+              AcadFlow has been designed and engineered with a focus on academic integrity and modern user experience by:
+            </p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Dev 1 */}
+              <a 
+                href="https://www.linkedin.com/in/kc-thedev" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="group"
+              >
+                <div className="h-full p-6 bg-gradient-to-br from-card to-muted border border-border rounded-xl transition-all group-hover:border-primary/50 group-hover:shadow-md relative overflow-hidden">
+                  <div className="relative z-10">
+                    <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Developer</p>
+                    <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                      Krishna Choudhary
+                      <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </h3>
+                    <p className="text-sm text-muted-foreground font-mono">Backend & Security</p>
+                  </div>
+                  <div className="absolute right-[-10px] bottom-[-10px] opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
+                    <Fingerprint size={100} />
+                  </div>
+                </div>
+              </a>
+
+              {/* Dev 2 - Replace details here */}
+              <a 
+                href="#" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="group"
+              >
+                <div className="h-full p-6 bg-gradient-to-br from-card to-muted border border-border rounded-xl transition-all group-hover:border-primary/50 group-hover:shadow-md relative overflow-hidden">
+                  <div className="relative z-10">
+                    <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1"> Developer</p>
+                    <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                      Aayush Shinde
+                      <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </h3>
+                    <p className="text-sm text-muted-foreground font-mono">UI/UX</p>
+                  </div>
+                  <div className="absolute right-[-10px] bottom-[-10px] opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
+                    <Fingerprint size={100} />
+                  </div>
+                </div>
+              </a>
+            </div>
+
+            <div className="p-4 bg-muted/30 border border-dashed border-border rounded-lg text-center">
+              <p className="text-xs text-muted-foreground italic">"Engineering tools that empower education."</p>
             </div>
           </section>
 

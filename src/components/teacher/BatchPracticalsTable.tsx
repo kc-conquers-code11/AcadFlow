@@ -35,7 +35,7 @@ export interface BatchTaskRow {
   resourceLink?: string;
   viva_cleared?: boolean;
   viva_score?: number;
-  ai_score?: number; // New field for AI Score
+  ai_score?: number;
 }
 
 export interface SortConfig {
@@ -49,7 +49,7 @@ interface BatchPracticalsTableProps {
   onEdit: (item: BatchTaskRow) => void;
   onDelete: (id: string) => void;
   onViewResponses: (item: BatchTaskRow) => void;
-  onDuplicate?: (item: BatchTaskRow) => void; // New Prop
+  onDuplicate?: (item: BatchTaskRow) => void;
 }
 
 export function BatchPracticalsTable({
@@ -58,7 +58,7 @@ export function BatchPracticalsTable({
   onEdit,
   onDelete,
   onViewResponses,
-  onDuplicate, // Destructure New Prop
+  onDuplicate,
 }: BatchPracticalsTableProps) {
 
   const isTeacher = userRole === 'teacher' || userRole === 'hod';
@@ -90,6 +90,7 @@ export function BatchPracticalsTable({
             </TableRow>
           ) : (
             items.map((item) => {
+              // Determine if we should show scores (only if NOT redo_requested)
               const showScore = item.studentStatus === 'evaluated' || (item.studentMarks !== null && item.studentMarks !== undefined);
 
               return (
@@ -120,8 +121,12 @@ export function BatchPracticalsTable({
                   ) : (
                     <TableCell className="text-center">
                       <div className="flex flex-col items-center gap-1">
-                        {/* Main Status */}
-                        {showScore ? (
+                        {/* Main Status Logic - Priority Updated */}
+                        {item.studentStatus === 'redo_requested' ? (
+                          <Badge variant="outline" className="border-orange-500 text-orange-600 bg-orange-50 hover:bg-orange-100">
+                            Redo Requested
+                          </Badge>
+                        ) : showScore ? (
                           <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 px-3">
                             {item.studentMarks ?? 0} / {item.maxMarks}
                           </Badge>
@@ -129,8 +134,6 @@ export function BatchPracticalsTable({
                           <Badge className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-50">Submitted</Badge>
                         ) : item.studentStatus === 'draft' ? (
                           <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200">Draft</Badge>
-                        ) : item.studentStatus === 'redo_requested' ? (
-                          <Badge variant="outline" className="border-orange-500 text-orange-600 bg-orange-50">Redo Requested</Badge>
                         ) : (
                           <span className="text-xs text-muted-foreground font-mono">-</span>
                         )}
@@ -138,7 +141,7 @@ export function BatchPracticalsTable({
                         {/* VIVA STATUS BADGE */}
                         {item.viva_cleared && (
                           <Badge variant="outline" className="text-[9px] h-4 border-green-500 text-green-600 flex gap-1 items-center px-1 bg-green-50">
-                            <BrainCircuit size={8} /> Viva OK
+                            <CheckCircle2 size={8} /> Viva OK
                           </Badge>
                         )}
                       </div>
@@ -152,6 +155,7 @@ export function BatchPracticalsTable({
                         <Button
                           asChild
                           size="sm"
+                          // If redo requested, show primary button style to encourage action
                           variant={showScore || item.studentStatus === 'submitted' ? "outline" : "default"}
                           className={cn(
                             "transition-all",
@@ -161,23 +165,23 @@ export function BatchPracticalsTable({
                           )}
                         >
                           <Link to={`/practical/${item.id}`}>
-                            {showScore || item.studentStatus === 'submitted' ? (
+                            {item.studentStatus === 'redo_requested' ? (
+                              <><Play className="mr-2 h-3 w-3" /> Redo</>
+                            ) : showScore || item.studentStatus === 'submitted' ? (
                               <>View Answer</>
                             ) : item.studentStatus === 'draft' ? (
                               <><FileEdit className="mr-2 h-3 w-3" /> Resume</>
-                            ) : item.studentStatus === 'redo_requested' ? (
-                              <><Play className="mr-2 h-3 w-3" /> Redo</>
                             ) : (
                               <><Play className="mr-2 h-3 w-3" /> Solve</>
                             )}
                           </Link>
                         </Button>
                       )}
-                      
+
                       {isTeacher && (
                         <TooltipProvider>
                           <div className="flex gap-1">
-                            
+
                             {/* DUPLICATE BUTTON */}
                             {onDuplicate && (
                               <Tooltip>
