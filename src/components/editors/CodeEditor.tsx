@@ -5,7 +5,8 @@ import {
   Check, 
   Lock, 
   FileCode, 
-  Terminal 
+  Terminal,
+  ShieldAlert
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -16,9 +17,8 @@ interface CodeEditorProps {
   onChange?: (content: string) => void;
   language?: string;
   readOnly?: boolean;
-  height?: string;
   filename?: string;
-  theme?: string; // Added Theme Prop
+  theme?: string; 
 }
 
 const languageConfig: Record<string, { label: string; monaco: string; color: string }> = {
@@ -42,19 +42,17 @@ export function CodeEditor({
   language = 'python',
   readOnly = false,
   filename,
-  theme = 'light' // Default to light
+  theme = 'light' 
 }: CodeEditorProps) {
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
 
-  // Resolve language details
   const config = languageConfig[language.toLowerCase()] || { 
     label: language.toUpperCase(), 
     monaco: language, 
     color: 'text-slate-600' 
   };
 
-  // Handle Theme Switching Dynamically
   useEffect(() => {
     if (monacoRef.current && editorRef.current) {
       monacoRef.current.editor.setTheme(theme === 'dark' ? 'acadflow-dark' : 'acadflow-light');
@@ -65,7 +63,12 @@ export function CodeEditor({
     editorRef.current = editor;
     monacoRef.current = monaco;
 
-    // Define Light Theme
+    // --- SECURITY: Disable Copy/Paste/Cut Shortcuts ---
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC, () => {});
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV, () => {});
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX, () => {});
+
+    // Define Themes
     monaco.editor.defineTheme('acadflow-light', {
       base: 'vs',
       inherit: true,
@@ -78,13 +81,12 @@ export function CodeEditor({
       }
     });
 
-    // Define Dark Theme
     monaco.editor.defineTheme('acadflow-dark', {
       base: 'vs-dark',
       inherit: true,
       rules: [],
       colors: {
-        'editor.background': '#09090b', // zinc-950 matches your app dark mode
+        'editor.background': '#09090b',
         'editor.lineHighlightBackground': '#27272a',
         'editorLineNumber.foreground': '#71717a',
         'editor.selectionBackground': '#3f3f46',
@@ -94,23 +96,17 @@ export function CodeEditor({
     monaco.editor.setTheme(theme === 'dark' ? 'acadflow-dark' : 'acadflow-light');
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(content);
-  };
-
   return (
     <div className={cn(
       "flex flex-col border rounded-xl overflow-hidden h-full transition-colors duration-300",
       theme === 'dark' ? "border-zinc-800 bg-zinc-950" : "border-slate-300 bg-white shadow-sm"
     )}>
       
-      {/* 1. Toolbar / Header */}
       <div className={cn(
         "flex items-center justify-between px-4 py-2 border-b backdrop-blur-sm transition-colors duration-300",
         theme === 'dark' ? "border-zinc-800 bg-zinc-900/50" : "border-slate-200 bg-slate-50/50"
       )}>
         <div className="flex items-center gap-3">
-          {/* File Icon */}
           <div className={cn(
             "flex items-center gap-2 px-2 py-1 rounded border shadow-sm transition-colors",
             theme === 'dark' ? "bg-zinc-900 border-zinc-700" : "bg-white border-slate-200"
@@ -121,7 +117,6 @@ export function CodeEditor({
             </span>
           </div>
 
-          {/* Read Only Badge */}
           {readOnly && (
             <Badge variant="secondary" className="h-6 gap-1 font-normal opacity-80">
               <Lock size={10} /> Read-Only
@@ -130,27 +125,22 @@ export function CodeEditor({
         </div>
 
         <div className="flex items-center gap-2">
-           {/* Language Indicator */}
+          {/* Security Badge */}
+          <Badge variant="outline" className="text-[10px] uppercase font-bold text-red-500 border-red-500/20 bg-red-500/5 gap-1.5">
+            <ShieldAlert size={10} /> Secure Input
+          </Badge>
+          
           <div className={cn("hidden sm:flex items-center gap-1.5 text-xs font-medium mr-2", theme === 'dark' ? "text-zinc-400" : "text-slate-400")}>
             <Terminal size={12} />
             {config.label}
           </div>
-
-          {/* Copy Button */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-7 w-7 opacity-70 hover:opacity-100"
-            onClick={copyToClipboard}
-            title="Copy code"
-          >
-            <Copy size={14} />
-          </Button>
         </div>
       </div>
 
-      {/* 2. The Editor Canvas */}
-      <div className="relative flex-1 min-h-0">
+      <div className="relative flex-1 min-h-0" 
+           onPaste={(e) => e.preventDefault()} 
+           onCopy={(e) => e.preventDefault()}
+      >
         <Editor
           height="100%"
           language={config.monaco}
@@ -170,6 +160,7 @@ export function CodeEditor({
             fontLigatures: true,
             renderLineHighlight: 'line',
             tabSize: 2,
+            contextmenu: false, // --- SECURITY: Disable Context Menu ---
             scrollbar: {
               vertical: 'visible',
               horizontal: 'visible',
@@ -179,11 +170,9 @@ export function CodeEditor({
             overviewRulerBorder: false,
             hideCursorInOverviewRuler: true,
           }}
-          className={cn(readOnly && "opacity-90")}
         />
       </div>
 
-      {/* 3. Footer Status */}
       {!readOnly && (
         <div className={cn(
           "border-t px-4 py-1 flex justify-end transition-colors duration-300",

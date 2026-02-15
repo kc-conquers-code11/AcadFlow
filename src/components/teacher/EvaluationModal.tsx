@@ -7,11 +7,11 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input'; // Required
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, X, Printer, Check, ShieldAlert, BrainCircuit, ExternalLink } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, X, Printer, Check, ShieldAlert, BrainCircuit, ExternalLink, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
@@ -19,8 +19,8 @@ import { Label } from '@/components/ui/label';
 interface EvaluationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  taskId: string | null;      // Changed from practicalId to support both
-  type: 'practical' | 'assignment'; // New Prop to distinguish
+  taskId: string | null;
+  type: 'practical' | 'assignment';
   initialStudentId?: string | null;
 }
 
@@ -51,7 +51,7 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
     getTeacherProfile();
   }, [user]);
 
-  // 2. Fetch Submissions (Dynamic based on Type)
+  // 2. Fetch Submissions
   useEffect(() => {
     if (open && taskId) {
       fetchSubmissions();
@@ -61,7 +61,6 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
   const fetchSubmissions = async () => {
     setLoading(true);
     try {
-      // Dynamic Query Construction
       const foreignKey = type === 'practical' ? 'practical_id' : 'assignment_id';
       const foreignTable = type === 'practical' ? 'practical:practical_id' : 'assignment:assignment_id';
 
@@ -78,11 +77,14 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
 
       if (error) throw error;
 
-      // Normalize Data Structure (Map assignment/practical to generic 'task')
-      const subList = (data || []).map((item: any) => ({
-        ...item,
-        task: item.practical || item.assignment
-      }));
+      const subList = (data || []).map((item: any) => {
+        const taskObj = item.practical || item.assignment;
+        if (taskObj && typeof taskObj.rubrics === 'string') {
+            try { taskObj.rubrics = JSON.parse(taskObj.rubrics); } 
+            catch (e) { taskObj.rubrics = []; }
+        }
+        return { ...item, task: taskObj };
+      });
 
       setSubmissions(subList);
 
@@ -98,7 +100,6 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
         loadSubmissionState(subList[targetIndex]);
       }
     } catch (err) {
-      console.error(err);
       toast.error("Failed to load submissions");
     } finally {
       setLoading(false);
@@ -197,6 +198,10 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
                .no-print { display: none; }
                .break-inside-avoid { break-inside: avoid; }
              }
+             /* Ensure tables print with borders */
+             table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+             th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; font-size: 12px; }
+             th { background-color: #f8fafc; font-weight: 600; }
           </style>
         </head>
         <body class="flex justify-center p-0 m-0">
@@ -216,7 +221,6 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
     }, 1000);
   };
 
-  // --- CONTENT PARSING LOGIC ---
   const renderContent = () => {
     if (!currentSubmission) return null;
 
@@ -250,14 +254,12 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
       docSections = { "Report": "No written content submitted." };
     }
 
-    // Cleanup
     delete (docSections as any).output;
     delete (docSections as any).code;
     delete (docSections as any).text;
 
     return (
       <div className="space-y-8">
-        {/* Custom Image */}
         {currentSubmission.image_link && (
           <div className="mb-4">
             <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 border-b pb-1">Attached Output</h4>
@@ -270,15 +272,16 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
           </div>
         )}
 
-        {/* Sections */}
         {Object.entries(docSections).map(([key, val]) => (
           <div key={key}>
             <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 border-b pb-1">{key}</h4>
-            <div className="prose prose-sm max-w-none text-slate-800" dangerouslySetInnerHTML={{ __html: val }} />
+            <div 
+                className="prose prose-sm max-w-none text-slate-800 [&_table]:w-full [&_table]:border-collapse [&_table]:border [&_table]:border-slate-300 [&_table]:mb-4 [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-100 [&_th]:p-2 [&_th]:text-left [&_td]:border [&_td]:border-slate-300 [&_td]:p-2" 
+                dangerouslySetInnerHTML={{ __html: val }} 
+            />
           </div>
         ))}
 
-        {/* Code */}
         {parsed.code && (
           <div>
             <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 border-b pb-1">Source Code</h4>
@@ -288,7 +291,6 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
           </div>
         )}
 
-        {/* Output */}
         {parsed.output && (
           <div>
             <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 border-b pb-1">Output</h4>
@@ -319,7 +321,6 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
           </div>
         ) : (
           <>
-            {/* Header */}
             <DialogHeader className="px-6 py-3 border-b flex flex-row items-center justify-between bg-white dark:bg-zinc-950 shrink-0">
               <div className="flex items-center gap-4">
                 <DialogTitle className="text-lg text-foreground">
@@ -339,9 +340,7 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
                 <Button variant="outline" size="sm" onClick={handlePrint} className="hidden md:flex gap-2">
                   <Printer className="h-4 w-4" /> Print / Save PDF
                 </Button>
-
                 <div className="h-6 w-px bg-border mx-2" />
-
                 <Button variant="outline" size="icon" onClick={handlePrev} disabled={currentIndex === 0}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -359,10 +358,8 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
             </DialogHeader>
 
             <div className="flex flex-1 overflow-hidden">
-              {/* View Area (PDF) */}
               <ScrollArea className="flex-1 bg-slate-200/50 dark:bg-zinc-900/50 p-8 flex justify-center">
                 <div id="printable-area" className="w-[210mm] min-h-[297mm] bg-white text-slate-900 shadow-xl p-[15mm] relative flex flex-col">
-
                   <div className="mb-6 border-b-2 border-slate-900 pb-2">
                     <img
                       src="/images/letterhead.jpg"
@@ -396,7 +393,6 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
                     </div>
                   </div>
 
-                  {/* VIVA STAMP */}
                   {currentSubmission.viva_cleared && (
                     <div className="absolute top-[35mm] right-[15mm] border-[3px] border-green-600 text-green-700 font-black px-4 py-1 text-sm uppercase rounded rotate-[-12deg] opacity-80 flex items-center gap-1 z-10 bg-white/80">
                       <BrainCircuit size={16} /> Viva Cleared ({currentSubmission.viva_score}/3)
@@ -413,7 +409,49 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
                     {renderContent()}
                   </div>
 
-                  {/* FOOTER SECTION */}
+                  {/* RUBRICS & MARKS TABLE */}
+                  <div className="mb-8 break-inside-avoid">
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 border-b pb-1">Assessment Summary</h4>
+                    <table className="w-full border-collapse border border-slate-300 text-xs">
+                        <thead>
+                            <tr className="bg-slate-100">
+                                <th className="border border-slate-300 p-2 text-left w-2/3">Criteria</th>
+                                <th className="border border-slate-300 p-2 text-center w-1/6">Max Marks</th>
+                                <th className="border border-slate-300 p-2 text-center w-1/6">Obtained</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {currentSubmission.task?.rubrics?.map((r: any) => (
+                                <tr key={r.id}>
+                                    <td className="border border-slate-300 p-2">{r.criteria}</td>
+                                    <td className="border border-slate-300 p-2 text-center">{r.max_marks}</td>
+                                    <td className="border border-slate-300 p-2 text-center font-bold">
+                                        {rubricScores[r.id] !== undefined ? rubricScores[r.id] : '-'}
+                                    </td>
+                                </tr>
+                            ))}
+                            {(!currentSubmission.task?.rubrics || currentSubmission.task?.rubrics?.length === 0) && (
+                                <tr>
+                                    <td className="border border-slate-300 p-2 text-center italic" colSpan={3}>Manual Grading (No Rubrics Defined)</td>
+                                </tr>
+                            )}
+                            <tr className="bg-slate-50 font-bold">
+                                <td className="border border-slate-300 p-2 text-right">Total</td>
+                                <td className="border border-slate-300 p-2 text-center">{displayMaxMarks}</td>
+                                <td className="border border-slate-300 p-2 text-center">
+                                    {Object.values(rubricScores).reduce((a, b) => a + b, 0)}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    {feedback && (
+                        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-slate-700">
+                            <strong>Faculty Feedback:</strong> {feedback}
+                        </div>
+                    )}
+                  </div>
+
                   <div className="mt-auto">
                     <div className="pt-8 border-t border-slate-200 flex items-end justify-between text-xs text-slate-400">
                       <div className="space-y-1">
@@ -421,7 +459,6 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
                         <p>Submission ID: <span className="font-mono text-slate-600">{currentSubmission.id.slice(0, 8)}</span></p>
                         <p>Verified On: {new Date().toLocaleDateString()}</p>
                       </div>
-
                       <div className="text-right flex flex-col items-end">
                         <div className="w-48 border border-slate-300 rounded bg-slate-50 p-2 text-left relative">
                           <div className="absolute -top-3 -right-3 bg-green-100 text-green-700 rounded-full p-1 border border-green-200 shadow-sm">
@@ -441,7 +478,6 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
                 </div>
               </ScrollArea>
 
-              {/* Grading Sidebar */}
               <div className="w-[400px] bg-white dark:bg-zinc-950 border-l border-border flex flex-col shadow-xl z-10">
                 <div className="p-4 bg-slate-50 dark:bg-zinc-900 border-b border-border font-semibold text-sm flex justify-between">
                   <span>Evaluation Panel</span>
@@ -449,16 +485,48 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
                 </div>
 
                 <ScrollArea className="flex-1 p-5">
-                  {/* Violation Logs */}
+                  {/* Detailed Violation Logs Section */}
                   {currentSubmission.violation_logs && currentSubmission.violation_logs.length > 0 ? (
                     <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-6">
-                      <h4 className="text-[10px] font-bold text-red-600 uppercase mb-2 flex items-center gap-2"><ShieldAlert size={12} /> Violations Detected ({currentSubmission.violation_logs.length})</h4>
-                      <div className="max-h-24 overflow-y-auto space-y-1">
-                        {currentSubmission.violation_logs.map((log: any, i: number) => (
-                          <div key={i} className="text-[9px] text-red-500 font-mono border-b border-red-100 last:border-0 pb-1">
-                            <span className="font-bold">{log.type}</span> at {new Date(log.timestamp).toLocaleTimeString()}
-                          </div>
-                        ))}
+                      <h4 className="text-[10px] font-bold text-red-600 uppercase mb-2 flex items-center gap-2">
+                        <ShieldAlert size={12} /> Violations Detected ({currentSubmission.violation_logs.length})
+                      </h4>
+                      <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                        {currentSubmission.violation_logs.map((log: any, i: number) => {
+                            let details = "Suspicious activity detected.";
+                            let icon = <AlertTriangle size={12} className="text-amber-500" />;
+                            
+                            switch(log.type) {
+                                case 'FOCUS_LOST': 
+                                    details = "Tab switched or browser minimized."; 
+                                    icon = <ExternalLink size={12} className="text-blue-500" />;
+                                    break;
+                                case 'FULLSCREEN_EXIT': 
+                                    details = "Exited secure fullscreen mode."; 
+                                    icon = <ShieldAlert size={12} className="text-red-500" />;
+                                    break;
+                                case 'COPY_PASTE': 
+                                    details = "Attempted to copy or paste content."; 
+                                    icon = <AlertTriangle size={12} className="text-orange-500" />;
+                                    break;
+                                default: 
+                                    details = log.details || "Unauthorized action detected.";
+                            }
+
+                            return (
+                                <div key={i} className="bg-white border border-red-100 rounded p-2 text-[10px] shadow-sm flex flex-col gap-1">
+                                    <div className="flex justify-between items-center border-b border-red-50 pb-1 mb-1">
+                                        <div className="flex items-center gap-1.5 font-bold text-red-700">
+                                            {icon} {log.type.replace(/_/g, ' ')}
+                                        </div>
+                                        <span className="text-slate-400 font-mono text-[9px]">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                                    </div>
+                                    <div className="text-slate-600 leading-tight pl-0.5">
+                                        {details}
+                                    </div>
+                                </div>
+                            );
+                        })}
                       </div>
                     </div>
                   ) : (
@@ -467,7 +535,6 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
                     </div>
                   )}
 
-                  {/* Attachments Info */}
                   {(currentSubmission.output_link || currentSubmission.image_link) && (
                     <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-6 space-y-2">
                       <h4 className="text-[10px] font-bold text-blue-600 uppercase">External Links</h4>
@@ -509,7 +576,7 @@ export function EvaluationModal({ open, onOpenChange, taskId, type, initialStude
                       </div>
                     ))}
 
-                    {!currentSubmission.task?.rubrics?.length && (
+                    {(!currentSubmission.task?.rubrics || currentSubmission.task?.rubrics?.length === 0) && (
                       <div className="text-sm text-slate-500 italic text-center p-4 border border-dashed rounded bg-muted/30">
                         No rubrics. Using Manual Score out of {displayMaxMarks}.
                       </div>
