@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Pencil, Eye, Play, FileEdit, CheckCircle2 } from 'lucide-react';
+import { Pencil, Eye, Trash2, Play, FileEdit, CheckCircle2, BrainCircuit, Copy } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -28,43 +28,57 @@ export interface BatchTaskRow {
   maxMarks: number;
   rubrics?: any[];
   practicalMode?: 'code' | 'no-code' | 'both';
-  studentStatus?: 'draft' | 'submitted' | 'evaluated' | null;
+  studentStatus?: 'draft' | 'submitted' | 'evaluated' | 'redo_requested' | null;
   studentMarks?: number | null;
+  // Extra fields
+  notes?: string;
+  resourceLink?: string;
+  viva_cleared?: boolean;
+  viva_score?: number;
+  ai_score?: number; // New field for AI Score
+}
+
+export interface SortConfig {
+  key: string;
+  direction: 'asc' | 'desc';
 }
 
 interface BatchPracticalsTableProps {
   items: BatchTaskRow[];
   userRole: string;
   onEdit: (item: BatchTaskRow) => void;
-  onDelete: (item: BatchTaskRow) => void;
+  onDelete: (id: string) => void;
   onViewResponses: (item: BatchTaskRow) => void;
+  onDuplicate?: (item: BatchTaskRow) => void; // New Prop
 }
 
 export function BatchPracticalsTable({
   items,
   userRole,
   onEdit,
+  onDelete,
   onViewResponses,
+  onDuplicate, // Destructure New Prop
 }: BatchPracticalsTableProps) {
 
   const isTeacher = userRole === 'teacher' || userRole === 'hod';
 
   return (
-    <div className="rounded-md border">
+    <div className="border border-border rounded-xl overflow-hidden bg-card shadow-sm">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead className="w-20 font-bold">Exp No</TableHead>
-            <TableHead className="font-bold">Title & Aim</TableHead>
-            <TableHead className="w-32 text-center font-bold">Mode</TableHead>
+          <TableRow className="bg-muted/50 hover:bg-muted/50">
+            <TableHead className="w-24 font-bold text-sm">Exp No</TableHead>
+            <TableHead className="font-bold text-sm">Title & Aim</TableHead>
+            <TableHead className="w-32 text-center font-bold text-sm">Mode</TableHead>
 
             {isTeacher ? (
-              <TableHead className="w-32 text-center font-bold">Deadline</TableHead>
+              <TableHead className="w-32 text-center font-bold text-sm">Deadline</TableHead>
             ) : (
-              <TableHead className="w-36 text-center font-bold">Status / Score</TableHead>
+              <TableHead className="w-40 text-center font-bold text-sm">Status / Viva</TableHead>
             )}
 
-            <TableHead className="w-40 text-right font-bold pr-6">Actions</TableHead>
+            <TableHead className="w-40 text-right font-bold text-sm pr-6">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -76,60 +90,64 @@ export function BatchPracticalsTable({
             </TableRow>
           ) : (
             items.map((item) => {
-              // LOGIC FIX: If status is evaluated OR marks exist (not null), show score
               const showScore = item.studentStatus === 'evaluated' || (item.studentMarks !== null && item.studentMarks !== undefined);
 
               return (
-                <TableRow key={item.id} className="group transition-colors">
-                  <TableCell className="font-mono font-medium text-muted-foreground">
+                <TableRow key={item.id} className="group hover:bg-muted/30 transition-colors">
+                  <TableCell className="font-mono font-semibold text-muted-foreground text-sm py-4">
                     {item.experimentNumber || '-'}
                   </TableCell>
 
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-foreground">{item.title}</span>
-                      <span className="text-xs text-muted-foreground truncate max-w-[250px]">
+                  <TableCell className="py-4">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-semibold text-foreground text-sm">{item.title}</span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[350px]">
                         {item.description || 'No description'}
                       </span>
                     </div>
                   </TableCell>
 
-                  <TableCell className="text-center">
-                    <Badge variant="outline" className="font-normal text-[10px] capitalize">
+                  <TableCell className="text-center py-4">
+                    <Badge variant="secondary" className="font-medium text-xs capitalize px-3 py-0.5">
                       {item.practicalMode || 'code'}
                     </Badge>
                   </TableCell>
 
                   {isTeacher ? (
-                    <TableCell className="text-center text-xs text-muted-foreground">
+                    <TableCell className="text-center text-sm text-muted-foreground py-4">
                       {item.deadline ? new Date(item.deadline).toLocaleDateString() : '-'}
                     </TableCell>
                   ) : (
                     <TableCell className="text-center">
-                      {/* STUDENT STATUS DISPLAY */}
-                      {showScore ? (
-                        <div className="flex flex-col items-center gap-1">
-                          <Badge variant="outline" className="border-green-500/50 text-green-600 dark:text-green-400 bg-green-500/10 px-3">
+                      <div className="flex flex-col items-center gap-1">
+                        {/* Main Status */}
+                        {showScore ? (
+                          <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 px-3">
                             {item.studentMarks ?? 0} / {item.maxMarks}
                           </Badge>
-                          <span className="text-[10px] text-green-600 dark:text-green-400 font-medium flex items-center gap-0.5">
-                            <CheckCircle2 size={10} /> Graded
-                          </span>
-                        </div>
-                      ) : item.studentStatus === 'submitted' ? (
-                        <Badge variant="outline" className="border-blue-500/50 text-blue-600 dark:text-blue-400 bg-blue-500/10">Submitted</Badge>
-                      ) : item.studentStatus === 'draft' ? (
-                        <Badge variant="outline" className="border-yellow-500/50 text-yellow-600 dark:text-yellow-400 bg-yellow-500/10">Draft</Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground font-mono">-</span>
-                      )}
+                        ) : item.studentStatus === 'submitted' ? (
+                          <Badge className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-50">Submitted</Badge>
+                        ) : item.studentStatus === 'draft' ? (
+                          <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200">Draft</Badge>
+                        ) : item.studentStatus === 'redo_requested' ? (
+                          <Badge variant="outline" className="border-orange-500 text-orange-600 bg-orange-50">Redo Requested</Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground font-mono">-</span>
+                        )}
+
+                        {/* VIVA STATUS BADGE */}
+                        {item.viva_cleared && (
+                          <Badge variant="outline" className="text-[9px] h-4 border-green-500 text-green-600 flex gap-1 items-center px-1 bg-green-50">
+                            <BrainCircuit size={8} /> Viva OK
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                   )}
 
-                  <TableCell className="text-right pr-4">
+                  <TableCell className="text-right pr-4 py-4">
                     <div className="flex items-center justify-end gap-2">
 
-                      {/* --- STUDENT ACTIONS --- */}
                       {!isTeacher && (
                         <Button
                           asChild
@@ -138,8 +156,8 @@ export function BatchPracticalsTable({
                           className={cn(
                             "transition-all",
                             showScore || item.studentStatus === 'submitted'
-                              ? ""
-                              : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 shadow-sm"
+                              ? "hover:bg-muted"
+                              : "bg-blue-600 hover:bg-blue-700 shadow-sm"
                           )}
                         >
                           <Link to={`/practical/${item.id}`}>
@@ -147,20 +165,34 @@ export function BatchPracticalsTable({
                               <>View Answer</>
                             ) : item.studentStatus === 'draft' ? (
                               <><FileEdit className="mr-2 h-3 w-3" /> Resume</>
+                            ) : item.studentStatus === 'redo_requested' ? (
+                              <><Play className="mr-2 h-3 w-3" /> Redo</>
                             ) : (
                               <><Play className="mr-2 h-3 w-3" /> Solve</>
                             )}
                           </Link>
                         </Button>
                       )}
-
-                      {/* --- TEACHER ACTIONS --- */}
+                      
                       {isTeacher && (
                         <TooltipProvider>
-                          <div className="flex gap-1 justify-end">
+                          <div className="flex gap-1">
+                            
+                            {/* DUPLICATE BUTTON */}
+                            {onDuplicate && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-blue-600 hover:bg-blue-50" onClick={() => onDuplicate(item)}>
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Duplicate Experiment</p></TooltipContent>
+                              </Tooltip>
+                            )}
+
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 dark:text-blue-400" onClick={() => onViewResponses(item)}>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-500/10" onClick={() => onViewResponses(item)}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
                               </TooltipTrigger>
@@ -169,11 +201,28 @@ export function BatchPracticalsTable({
 
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => onEdit(item)}>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted" onClick={() => onEdit(item)}>
                                   <Pencil className="h-4 w-4" />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent><p>Edit</p></TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-500/10"
+                                  onClick={() => {
+                                    if (item.id) onDelete(item.id);
+                                    else console.error("Missing ID");
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent><p>Archive (Soft Delete)</p></TooltipContent>
                             </Tooltip>
                           </div>
                         </TooltipProvider>

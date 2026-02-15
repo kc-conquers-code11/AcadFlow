@@ -6,13 +6,14 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { CommandMenu } from "@/components/layout/CommandMenu"; // Import this!
 
 // Pages
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Subjects from "./pages/Subjects";
 import SubjectDetail from "./pages/SubjectDetail";
-import Batches from "./pages/Batches";
+import Batches from "./pages/Batches";  
 import BatchDashboard from "./pages/BatchDashboard";
 import Assignments from "./pages/Assignments";
 import EditorPage from "./pages/EditorPage";
@@ -23,9 +24,10 @@ import Reports from "./pages/Reports";
 import UsersPage from "./pages/Users";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
-
-// Auth Pages
-import { ForgotPassword, ResetPassword } from "./pages/index"
+import { ForgotPassword, ResetPassword } from "./pages/index";
+import Support from "./pages/Support";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import AdminDashboard from "./pages/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -36,55 +38,64 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <BrowserRouter>
+          
+          {/* ✅ FIXED: Placed CommandMenu HERE (Outside Routes, Inside Router) */}
+          <CommandMenu /> 
+
           <Routes>
-            {/* Public routes */}
+            {/* --- PUBLIC ROUTES --- */}
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/practical/:practicalId" element={<EditorPage />} />
-            {/* Protected Routes */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<MainLayout />}>
+            <Route path="/support" element={<Support />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
 
-                {/* --- 1. SHARED ROUTES (Student, Teacher, Admin) --- */}
+            {/* --- PROTECTED ROUTES --- */}
+            <Route element={<ProtectedRoute />}>
+              
+              {/* A. FULLSCREEN ROUTES (No Sidebar/Header) */}
+              <Route path="/practical/:practicalId" element={<EditorPage />} />
+              <Route path="/editor/:practicalId" element={<EditorPage />} />
+              <Route path="/evaluate/:submissionId" element={<EvaluatePage />} />
+
+              {/* B. MAIN LAYOUT ROUTES (With Sidebar & Navbar) */}
+              <Route element={<MainLayout />}>
+                
+                {/* 1. Global Shared */}
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/settings" element={<Settings />} />
+                
+                {/* 2. Admin Exclusive Routes */}
+                <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                  <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/users" element={<UsersPage />} />
+                </Route>
 
-                {/* --- 2. ACADEMIC SHARED (Student & Teacher) --- */}
-                {/* Isko alag nikala taaki permission conflict na ho */}
-                <Route element={<ProtectedRoute allowedRoles={['student', 'teacher']} />}>
+                {/* 3. Academic Shared (Student + Teacher + HOD + Admin) */}
+                <Route element={<ProtectedRoute allowedRoles={['student', 'teacher', 'hod', 'admin']} />}>
                   <Route path="/batches" element={<Batches />} />
-                  <Route path="/batches/:batchId" element={<BatchDashboard />} /> {/* URL Fixed: uses ID now */}
+                  <Route path="/batches/:batchId" element={<BatchDashboard />} />
                   <Route path="/assignments" element={<Assignments />} />
                 </Route>
 
-                {/* --- 3. STUDENT ONLY --- */}
+                {/* 4. Student Only */}
                 <Route element={<ProtectedRoute allowedRoles={['student']} />}>
                   <Route path="/subjects" element={<Subjects />} />
                   <Route path="/subjects/:subjectId" element={<SubjectDetail />} />
-<Route path="/editor/:practicalId" element={<EditorPage />} />                </Route>
-
-                {/* --- 4. TEACHER ONLY --- */}
-                <Route element={<ProtectedRoute allowedRoles={['teacher', 'admin']} />}>
-                  <Route path="/submissions" element={<Submissions />} />
-                  <Route path="/submissions/:assignmentId" element={<SubmissionList />} />
-                  <Route path="/evaluate/:submissionId" element={<EvaluatePage />} />
-                  <Route path="/reports" element={<Reports />} />
                 </Route>
 
-                {/* --- 5. ADMIN ONLY --- */}
-                <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-                   <Route path="/subjects" element={<Subjects />} />
-                   <Route path="/users" element={<UsersPage />} />
+                {/* 5. Teacher & Admin Only */}
+                <Route element={<ProtectedRoute allowedRoles={['teacher', 'hod', 'admin']} />}>
+                  <Route path="/submissions" element={<Submissions />} />
+                  <Route path="/submissions/:assignmentId" element={<SubmissionList />} />
+                  <Route path="/reports" element={<Reports />} />
                 </Route>
 
               </Route>
             </Route>
 
-            {/* Default Redirect */}
+            {/* --- FALLBACKS --- */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            
-            {/* 404 Page */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

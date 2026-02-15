@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
-import { AppHeader } from './AppHeader';
+import { Breadcrumbs } from './Breadcrumbs'; // Import the new component
 import { Outlet } from 'react-router-dom';
 
 interface MainLayoutProps {
@@ -25,11 +25,15 @@ export function MainLayout({ children }: MainLayoutProps) {
         {/* Background Layer */}
         <GlobalGridPattern />
 
-        {/* Sticky Header */}
-        <AppHeader />
+        {/* 3. Pro Header (Trigger + Breadcrumbs) */}
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4 bg-background/60 backdrop-blur-md sticky top-0 z-20">
+          <SidebarTrigger className="-ml-1" />
+          <div className="mr-2 h-4 w-px bg-border" /> {/* Vertical Separator */}
+          <Breadcrumbs />
+        </header>
 
         {/* Dynamic Content */}
-        <main className="flex-1 p-6 lg:p-10 w-full max-w-7xl mx-auto z-10 relative">
+        <main className="flex-1 p-6 lg:p-10 w-full max-w-7xl mx-auto z-10 relative animate-in fade-in slide-in-from-bottom-2 duration-500">
           {/* Outlet renders the child route (Dashboard, Settings, etc.) */}
           {children || <Outlet />}
         </main>

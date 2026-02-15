@@ -6,14 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from '@/components/ui/card';
 import {
   User,
   Bell,
@@ -23,29 +16,63 @@ import {
   Save,
   Lock,
   GraduationCap,
-  Layers,
-  LayoutGrid,
   Hash,
   Smartphone,
   LogOut,
   Loader2,
+  Layers,
+  LayoutGrid,
   Clock,
-  Eye,
-  EyeOff
+  KeyRound,
+  ChevronRight,
+  Settings as SettingsIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+// Reusable Section Component
+const SettingsSection = ({ icon: Icon, title, description, children }: any) => (
+  <Card className="border-border bg-card overflow-hidden">
+    <div className="px-6 py-4 border-b border-border bg-muted/30 flex items-center gap-3">
+      <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+        <Icon size={16} />
+      </div>
+      <div>
+        <h3 className="text-sm font-bold text-foreground">{title}</h3>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+    </div>
+    <CardContent className="p-6 space-y-6">
+      {children}
+    </CardContent>
+  </Card>
+);
+
+// Reusable Input Group
+const InputGroup = ({ label, icon: Icon, disabled, value, onChange, type = "text", placeholder }: any) => (
+  <div className="space-y-2">
+    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+      {Icon && <Icon size={12} />} {label}
+    </label>
+    <Input
+      type={type}
+      value={value || ''}
+      onChange={onChange}
+      disabled={disabled}
+      placeholder={placeholder}
+      className={cn(
+        "bg-background border-border focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all h-10",
+        disabled && "bg-muted text-muted-foreground cursor-not-allowed"
+      )}
+    />
+  </div>
+);
 
 export default function Settings() {
   const { user, logout } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<any>(null);
-
-  // Password Visibility States
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Fetch Profile Data
   useEffect(() => {
@@ -79,7 +106,6 @@ export default function Settings() {
         .from('profiles')
         .update({
           name: profile.name,
-          // Add other editable fields here if any
         })
         .eq('id', user?.id);
 
@@ -94,260 +120,166 @@ export default function Settings() {
   };
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center bg-background"><Loader2 className="animate-spin text-muted-foreground" /></div>;
+    return <div className="flex h-[80vh] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>;
   }
 
   if (!profile) return null;
 
   return (
-    <div className="max-w-4xl mx-auto pb-10 animate-in fade-in space-y-8">
+    <div className="min-h-screen bg-background animate-in fade-in">
+      <div className="max-w-4xl mx-auto p-8 space-y-8">
 
-      {/* 1. Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Account Settings</h1>
-        <p className="text-muted-foreground mt-2">Manage your profile, preferences, and security settings.</p>
-      </div>
+        {/* Page Header */}
+        <header className="border-b border-border pb-6">
+          <h1 className="text-4xl font-extrabold tracking-tight text-foreground">Settings</h1>
+          <p className="text-muted-foreground mt-2">Manage your profile, preferences, and security.</p>
+        </header>
 
-      <div className="grid gap-8">
-
-        {/* 2. Identity Card */}
-        <Card>
+        {/* Identity Card */}
+        <Card className="border-border bg-card overflow-hidden">
           <CardContent className="p-6 flex flex-col md:flex-row items-center gap-6">
-            <Avatar className="h-24 w-24 border-4 border-background shadow-sm">
+            <Avatar className="h-20 w-20 ring-4 ring-border">
               <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${profile.name}`} />
-              <AvatarFallback className="text-3xl font-bold">
+              <AvatarFallback className="text-2xl font-bold bg-primary/10 text-primary">
                 {profile.name?.charAt(0)}
               </AvatarFallback>
             </Avatar>
 
             <div className="flex-1 text-center md:text-left space-y-2">
               <div>
-                <h2 className="text-2xl font-bold text-foreground">{profile.name}</h2>
-                <p className="text-muted-foreground font-medium">{profile.email}</p>
+                <h2 className="text-xl font-bold text-foreground">{profile.name}</h2>
+                <p className="text-muted-foreground text-sm">{profile.email}</p>
               </div>
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
-                <Badge variant="secondary" className="capitalize">
+                <Badge className="bg-primary/10 text-primary border-primary/20 capitalize">
                   {profile.role}
                 </Badge>
-                <Badge variant="outline">
+                <Badge variant="outline" className="text-muted-foreground border-border">
                   {profile.department || 'Computer Engineering'}
                 </Badge>
               </div>
             </div>
 
-            <Button variant="outline" onClick={() => logout()} className="hover:bg-destructive hover:text-destructive-foreground">
+            <Button variant="outline" onClick={() => logout()} className="border-border text-muted-foreground hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/30 transition-all">
               <LogOut className="h-4 w-4 mr-2" /> Sign Out
             </Button>
           </CardContent>
         </Card>
 
-        {/* 3. Personal Information */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" />
-              <CardTitle>Personal Profile</CardTitle>
-            </div>
-            <CardDescription>Update your personal details and academic info.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="name"
-                    value={profile.name}
-                    onChange={(e) => handleChange('name', e.target.value)}
-                    className="pl-9"
+        {/* Personal Information */}
+        <SettingsSection
+          icon={User}
+          title="Personal Profile"
+          description="Update your personal details and academic info."
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <InputGroup
+              label="Full Name"
+              icon={User}
+              value={profile.name}
+              onChange={(e: any) => handleChange('name', e.target.value)}
+            />
+            <InputGroup
+              label="Email Address"
+              icon={Mail}
+              value={profile.email}
+              disabled
+            />
+            <InputGroup
+              label="Department"
+              icon={Building}
+              value={profile.department || 'Computer Engineering'}
+              disabled
+            />
+
+            {profile.role === 'student' && (
+              <>
+                <InputGroup
+                  label="Enrollment ID"
+                  icon={Hash}
+                  value={profile.enrollment_number}
+                  disabled
+                />
+                <InputGroup
+                  label="Academic Year"
+                  icon={GraduationCap}
+                  value={`Year ${profile.year || '-'}`}
+                  disabled
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <InputGroup
+                    label="Division"
+                    icon={LayoutGrid}
+                    value={profile.division}
+                    disabled
+                  />
+                  <InputGroup
+                    label="Batch"
+                    icon={Layers}
+                    value={`Batch ${profile.batch}`}
+                    disabled
                   />
                 </div>
-              </div>
+              </>
+            )}
+          </div>
 
-              <div className="space-y-2">
-                <Label>Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input value={profile.email} disabled className="pl-9 bg-muted/50" />
-                </div>
-              </div>
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleSave} disabled={saving} className="min-w-[140px]">
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Changes
+            </Button>
+          </div>
+        </SettingsSection>
 
-              <div className="space-y-2">
-                <Label>Department</Label>
-                <div className="relative">
-                  <Building className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input value={profile.department || 'Computer Engineering'} disabled className="pl-9 bg-muted/50" />
-                </div>
-              </div>
-
-              {profile.role === 'student' && (
-                <>
-                  <div className="space-y-2">
-                    <Label>Enrollment ID</Label>
-                    <div className="relative">
-                      <Hash className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input value={profile.enrollment_number} disabled className="pl-9 bg-muted/50" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Academic Year</Label>
-                    <div className="relative">
-                      <GraduationCap className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input value={`Year ${profile.year || '-'}`} disabled className="pl-9 bg-muted/50" />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Division</Label>
-                      <div className="relative">
-                        <LayoutGrid className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input value={profile.division} disabled className="pl-9 bg-muted/50" />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Batch</Label>
-                      <div className="relative">
-                        <Layers className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input value={`Batch ${profile.batch}`} disabled className="pl-9 bg-muted/50" />
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="flex justify-end pt-4">
-              <Button onClick={handleSave} disabled={saving} className="min-w-[140px]">
-                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                Save Changes
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 4. Notifications */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Bell className="h-5 w-5 text-primary" />
-              <CardTitle>Notifications</CardTitle>
-            </div>
-            <CardDescription>Configure how you want to be alerted.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+        {/* Notifications */}
+        <SettingsSection
+          icon={Bell}
+          title="Notifications"
+          description="Configure how you want to be alerted."
+        >
+          <div className="space-y-1">
             {[
               { title: "Email Alerts", desc: "Receive emails about new assignments and grades.", icon: Mail },
               { title: "Deadline Reminders", desc: "Get notified 24h before submission due date.", icon: Clock },
               { title: "Push Notifications", desc: "Receive alerts on your mobile device.", icon: Smartphone }
             ].map((item, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <div className="flex gap-4">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg border bg-muted/50">
-                    <item.icon className="h-5 w-5 text-muted-foreground" />
+              <div key={i} className="flex items-center justify-between py-4 px-2 rounded-lg hover:bg-muted/50 transition-colors">
+                <div className="flex gap-3 items-center">
+                  <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                    <item.icon size={16} />
                   </div>
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-medium leading-none">{item.title}</p>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{item.title}</p>
                     <p className="text-xs text-muted-foreground">{item.desc}</p>
                   </div>
                 </div>
-                <Switch defaultChecked />
+                <Switch defaultChecked className="data-[state=checked]:bg-primary" />
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </SettingsSection>
 
-        {/* 5. Security */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
-              <CardTitle>Security</CardTitle>
-            </div>
-            <CardDescription>Manage your password and authentication.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6 max-w-lg">
-            <div className="space-y-2">
-              <Label>Current Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type={showCurrentPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  className="pl-9 pr-10"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                >
-                  {showCurrentPassword ? (
-                    <EyeOff className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </Button>
-              </div>
-            </div>
+        {/* Security */}
+        <SettingsSection
+          icon={Shield}
+          title="Security"
+          description="Manage your password and authentication."
+        >
+          <div className="space-y-6 max-w-lg">
+            <InputGroup label="Current Password" icon={Lock} type="password" placeholder="••••••••" />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label>New Password</Label>
-                <div className="relative">
-                  <Input
-                    type={showNewPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    className="pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                  >
-                    {showNewPassword ? (
-                      <EyeOff className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Confirm Password</Label>
-                <div className="relative">
-                  <Input
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    className="pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
-                </div>
-              </div>
+              <InputGroup label="New Password" icon={KeyRound} type="password" placeholder="••••••••" />
+              <InputGroup label="Confirm Password" icon={KeyRound} type="password" placeholder="••••••••" />
             </div>
 
-            <Button variant="outline">
+            <Button variant="outline" className="border-border text-muted-foreground hover:text-foreground">
+              <Lock className="h-4 w-4 mr-2" />
               Update Password
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </SettingsSection>
 
       </div>
     </div>

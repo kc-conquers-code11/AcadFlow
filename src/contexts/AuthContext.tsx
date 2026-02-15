@@ -19,7 +19,7 @@ interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
   adminLogin: (email: string, password: string) => Promise<{ error: any }>;
-  login: (email: string, password: string) => Promise<{ error: any }>;
+  login: (email: string, password: string) => Promise<{ data: any; error: any }>;
   signup: (
     email: string,
     password: string,
@@ -130,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (data.user) {
       await fetchProfile(data.user.id, data.user.email!)
     };
-    return { error };
+    return { data, error };
   };
 
   const signup = async (

@@ -119,7 +119,7 @@ export function BatchAssignmentsTable({
                     {item.submittedCount}
                   </TableCell>
                   <TableCell className="text-center text-muted-foreground">
-                    {item.submittedPercent}%
+                    {item.submittedCount}%
                   </TableCell>
                   <TableCell className="text-right">
                     <TooltipProvider>
