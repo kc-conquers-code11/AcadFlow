@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-// Removed axios import to avoid confusion
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { LANGUAGES } from '@/data/languages';
@@ -45,7 +44,6 @@ import SecurityEngine from '@/components/secure/SecurityEngine';
 import WebTerminal, { WebTerminalRef } from '@/components/secure/WebTerminal';
 
 // --- API CONFIG ---
-const PISTON_API = "https://emkc.org/api/v2/piston/execute";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 // Get API Keys (Rotation Support)
@@ -54,7 +52,7 @@ const GROQ_API_KEYS = [
     import.meta.env.VITE_GROQ_API_KEY_2,
     import.meta.env.VITE_GROQ_API_KEY_3,
     import.meta.env.VITE_GROQ_API_KEY,
-    "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" // Fallback hardcoded (safe to expose if it's a free tier key intended for public demo)
+    "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" // Fallback
 ].filter(Boolean);
 
 // --- HELPER: Fetch with Key Rotation ---
@@ -73,14 +71,14 @@ const fetchWithGroqRotation = async (body: any) => {
                 body: JSON.stringify(body)
             });
 
-            if (response.status === 401 || response.status === 403) {
+            if (response.status === 401 || response.status === 403 || response.status === 429) {
                 console.warn(`Groq Key Failed (${response.status}). Rotating...`);
                 continue; // Try next key
             }
 
             if (!response.ok) throw new Error(`Groq Error: ${response.statusText}`);
 
-            return await response.json(); // Success!
+            return await response.json();
         } catch (err) {
             lastError = err;
             console.error(err);
@@ -97,7 +95,8 @@ export default function EditorPage() {
 
     // --- UI STATES ---
     const [loading, setLoading] = useState(true);
-    const [isExamStarted, setIsExamStarted] = useState(false);
+    // Persist exam start state to handle page reloads
+    const [isExamStarted, setIsExamStarted] = useState(() => localStorage.getItem(`exam_started_${practicalId}`) === 'true');
     const [activeTab, setActiveTab] = useState('code');
     const [violationCount, setViolationCount] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
@@ -142,7 +141,7 @@ export default function EditorPage() {
 
     const terminalRef = useRef<WebTerminalRef>(null);
 
-    // --- SECURITY: Block Copy/Paste Global Listener ---
+    // --- SECURITY: Block Copy/Paste & Session Persist ---
     useEffect(() => {
         const handleContextMenu = (e: MouseEvent) => e.preventDefault();
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -155,13 +154,14 @@ export default function EditorPage() {
         if (isExamStarted) {
             window.addEventListener('contextmenu', handleContextMenu);
             window.addEventListener('keydown', handleKeyDown);
+            localStorage.setItem(`exam_started_${practicalId}`, 'true');
         }
 
         return () => {
             window.removeEventListener('contextmenu', handleContextMenu);
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isExamStarted]);
+    }, [isExamStarted, practicalId]);
 
     // 1. Fetch Data
     useEffect(() => {
@@ -256,7 +256,121 @@ export default function EditorPage() {
         fetchData();
     }, [practicalId, user]);
 
-    // --- API: GENERATE VIVA (Using Native Fetch) ---
+    // --- INSTANT VIOLATION SAVER (Prevents Data Loss on Reload) ---
+    const logViolationNow = async (type: string, details: any) => {
+        const newLog = { type, ...details, timestamp: new Date().toISOString() };
+        
+        setViolationCount(prev => prev + 1);
+        setViolationLogs(prev => {
+            const updatedLogs = [...prev, newLog];
+            
+            // Fire-and-Forget Save
+            if (user && task) {
+               const matchQuery = isPractical ? { student_id: user.id, practical_id: task.id } : { student_id: user.id, assignment_id: task.id };
+               supabase.from('submissions').update({ 
+                   violation_logs: updatedLogs,
+                   last_saved_at: new Date().toISOString()
+               }).match(matchQuery).then(({ error }) => {
+                   if (error) console.error("Violation Sync Failed:", error);
+               });
+            }
+            return updatedLogs;
+        });
+
+        if (type === 'FOCUS_LOST') {
+            toast.warning("⚠️ Tab switching detected!", { duration: 5000 });
+        }
+    };
+
+    // --- API: EMERGENCY AI SIMULATOR ---
+    const runCodeSimulated = async (lang: string, code: string) => {
+        const prompt = `Act as a strict code compiler/interpreter. Language: ${lang}. 
+        Code: 
+        ${code}
+        
+        Execute this code virtually. Return ONLY a valid JSON object with exactly these fields: 
+        { "stdout": "output string here", "stderr": "error string here (if any)" }. 
+        Do not include any markdown formatting or explanation outside the JSON.`;
+
+        try {
+            const data = await fetchWithGroqRotation({
+                model: "llama-3.3-70b-versatile",
+                messages: [{ role: "user", content: prompt }],
+                response_format: { type: "json_object" },
+                temperature: 0.1
+            });
+            const result = JSON.parse(data.choices[0].message.content);
+            return {
+                stdout: result.stdout || "",
+                stderr: result.stderr || ""
+            };
+        } catch (err) {
+            console.error("Simulation failed:", err);
+            return { stdout: "", stderr: "Virtual Runtime Error: Execution timed out or failed to simulate." };
+        }
+    };
+
+    const handleRunCode = async () => {
+        if (!codeContent.trim()) { toast.error("Write code first!"); return; }
+        setIsRunning(true);
+
+        terminalRef.current?.clear();
+        terminalRef.current?.run(`[System] Initializing ${selectedLang.toUpperCase()} Virtual Runtime...`, 'system');
+
+        // 🔥 Switched to Simulation
+        const result = await runCodeSimulated(selectedLang, codeContent);
+        
+        if (result.stderr) terminalRef.current?.run(result.stderr, 'stderr');
+        if (result.stdout) terminalRef.current?.run(result.stdout, 'stdout');
+        
+        const finalOutput = (result.stdout || "") + "\n" + (result.stderr || "");
+        setExecutionOutput(finalOutput);
+
+        terminalRef.current?.run(`\n[System] Calculating AI Score & Feedback...`, 'system');
+
+        // --- FIXED AI GRADING LOGIC WITH FEEDBACK ---
+        const gradePrompt = `Rate this code solution for the task "${task.title}". 
+        Code: ${codeContent}
+        Output: ${finalOutput}
+        
+        Analyze strict correctness and logic. 
+        Return ONLY a JSON object: { "score": number (0-10), "feedback": "Brief 1-2 sentence explanation of the score" }`;
+
+        fetchWithGroqRotation({
+            model: "llama-3.3-70b-versatile",
+            messages: [{ role: "user", content: gradePrompt }],
+            response_format: { type: "json_object" }
+        })
+        .then(data => {
+            try {
+                const content = data.choices[0].message.content;
+                const parsed = JSON.parse(content);
+                const score = parsed.score || 0;
+                const feedback = parsed.feedback || "No feedback provided.";
+                
+                setAiScore(score);
+                
+                // Show Score and Feedback in Terminal
+                terminalRef.current?.run(`[System] Grading Complete. AI Score: ${score}/10`, 'system');
+                terminalRef.current?.run(`[AI Feedback] ${feedback}`, 'info'); 
+                
+                // Save score
+                upsertSubmission('draft', score, finalOutput);
+            } catch (parseErr) {
+                console.error("AI Grading Parse Error:", parseErr);
+                terminalRef.current?.run(`[System] Grading Error: Invalid AI response.`, 'stderr');
+            }
+        })
+        .catch((err) => {
+            console.error("AI Grading Network Error:", err);
+            terminalRef.current?.run(`[System] Grading Failed: Network/API Error.`, 'stderr');
+        });
+
+        setIsRunning(false);
+        upsertSubmission('draft', undefined, finalOutput);
+    };
+
+    // --- API: GENERATE VIVA ---
     const generateVivaQuestions = async () => {
         setVivaLoading(true);
         setVivaDialogOpen(true);
@@ -308,95 +422,6 @@ export default function EditorPage() {
             toast.error(`Viva Failed (${correctCount}/3). You must understand your code to submit. Try again.`);
             setVivaAnswers({});
         }
-    };
-
-    // --- EXECUTION LOGIC (NUCLEAR FIX: Native Fetch + credentials: 'omit') ---
-    const runCodeOnPiston = async (langId: string, code: string) => {
-        const config = LANGUAGES.find(l => l.id === langId) || LANGUAGES[0];
-
-        try {
-            // Using NATIVE FETCH instead of Axios to ensure NO global headers are sent
-            const response = await fetch(PISTON_API, {
-                method: "POST",
-                credentials: 'omit', // THIS IS THE KEY FIX
-                headers: {
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
-                },
-                body: JSON.stringify({
-                    language: config.piston,
-                    version: config.ver,
-                    files: [{ content: code }]
-                })
-            });
-
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`Execution Failed: ${response.status} ${errText}`);
-            }
-
-            const data = await response.json();
-            return data.run;
-        } catch (error: any) {
-            return { stderr: "Compiler Connection Error: " + error.message, stdout: "" };
-        }
-    };
-
-    const gradeWithGroq = async (code: string, output: string, taskTitle: string, taskDesc: string) => {
-        if (GROQ_API_KEYS.length === 0) return 0;
-        const prompt = `Act as a strict Computer Science Professor. Task: ${taskTitle}. Desc: ${taskDesc}. Code: ${code}. Output: ${output}. Analyze logic & correctness. Return ONLY valid JSON: { "score": number (0-100) }`;
-        try {
-            const data = await fetchWithGroqRotation({
-                model: "llama-3.3-70b-versatile",
-                messages: [{ role: "user", content: prompt }],
-                response_format: { type: "json_object" }
-            });
-            const result = JSON.parse(data.choices[0].message.content);
-            return result.score || 0;
-        } catch { return 0; }
-    };
-
-    const handleRunCode = async () => {
-        if (!codeContent.trim()) { toast.error("Write code first!"); return; }
-        setIsRunning(true);
-
-        terminalRef.current?.clear();
-        terminalRef.current?.run(`[System] Compiling ${selectedLang.toUpperCase()} source code...`, 'system');
-
-        const result = await runCodeOnPiston(selectedLang, codeContent);
-        let output = result.stdout;
-        let error = result.stderr;
-
-        // --- REALISTIC TASM SIMULATION ---
-        if (selectedLang === 'asm') {
-            if (error) {
-                terminalRef.current?.run(`\nTASM Assembler Version 4.1`, 'system');
-                terminalRef.current?.run(error, 'stderr');
-            } else {
-                terminalRef.current?.run(`\nTASM Assembler Version 4.1  Copyright (c) 1988, 1996 Borland International`, 'system');
-                terminalRef.current?.run(`\nAssembling file:   source.asm\nError messages:    None\nWarning messages:  None\nPasses:            1\nRemaining memory:  412k`, 'stdout');
-                terminalRef.current?.run(`\n[System] Executing .EXE file...`, 'system');
-                terminalRef.current?.run(output || "Program executed successfully.", 'stdout');
-            }
-        }
-        else {
-            if (error) terminalRef.current?.run(error, 'stderr');
-            if (output) terminalRef.current?.run(output, 'stdout');
-            if (!error && !output) terminalRef.current?.run("Program executed with no output.", 'system');
-        }
-
-        const finalOutput = (output || "") + "\n" + (error || "");
-        setExecutionOutput(finalOutput);
-
-        terminalRef.current?.run("\n[System] AI Grading in progress...", 'system');
-
-        gradeWithGroq(codeContent, finalOutput, task.title, task.description).then(score => {
-            setAiScore(score);
-            terminalRef.current?.run(`[System] Grading Complete. AI Estimate: ${score}/100`, 'system');
-        });
-
-        setIsRunning(false);
-        await upsertSubmission('draft', undefined, finalOutput);
     };
 
     const handleCopyToReport = () => {
@@ -455,6 +480,7 @@ export default function EditorPage() {
 
             if (status === 'submitted') {
                 toast.success("Submitted Successfully!");
+                localStorage.removeItem(`exam_started_${practicalId}`); // Clear session on submit
                 navigate(-1);
             } else {
                 toast.success("Progress Saved");
@@ -539,7 +565,6 @@ export default function EditorPage() {
                         <Button onClick={handlePrint} variant="outline" size="sm"><Download className="mr-2 h-4 w-4" /> Download Report</Button>
                     </div>
                 </header>
-                {/* ... (Existing Read Only Body with PDF Preview logic) ... */}
                 <div className="flex-1 overflow-y-auto p-8 flex justify-center bg-muted/30">
                     <div id="printable-area" className="w-[210mm] min-h-[297mm] bg-card text-foreground shadow-xl rounded-xl p-[15mm] flex flex-col border border-border">
                         <div className="mb-6 border-b-2 border-foreground/20 pb-2"><img src="/images/letterhead.jpg" alt="Letterhead" className="w-full max-h-32 object-contain mx-auto" onError={(e) => { e.currentTarget.style.display = 'none' }} /></div>
@@ -585,22 +610,18 @@ export default function EditorPage() {
             <SecurityEngine
                 submissionId={practicalId || ''}
                 isPaused={linkDialogOpen || vivaDialogOpen || previewOpen}
-                onViolation={(type, details) => {
-                    setViolationCount(prev => prev + 1);
-                    setViolationLogs(prev => [...prev, { type, ...details }]);
-                    if (type === 'FOCUS_LOST') toast.warning("⚠️ Tab switching detected!");
-                }}
+                onViolation={(type, details) => logViolationNow(type, details)}
             />
 
             <header className="h-14 border-b border-border bg-card flex items-center justify-between px-5 shrink-0 shadow-sm transition-colors">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 min-w-0">
                     <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground"><ChevronLeft className="h-4 w-4" /></Button>
-                    <div>
+                    <div className="min-w-0 flex flex-col justify-center">
                         <h1 className="font-bold text-base text-foreground flex items-center gap-2">
-                            {task.title}
-                            {violationCount > 0 && <Badge variant="destructive" className="h-5 text-xs animate-pulse">{violationCount} Violations</Badge>}
+                            <span className="truncate">{task.title}</span>
+                            {violationCount > 0 && <Badge variant="destructive" className="h-5 text-xs animate-pulse whitespace-nowrap">{violationCount} Violations</Badge>}
                         </h1>
-                        <p className="text-xs text-muted-foreground">{subjectName} • Secure Mode</p>
+                        <p className="text-xs text-muted-foreground truncate">{subjectName} • Secure Mode</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -625,7 +646,7 @@ export default function EditorPage() {
                         <DialogTrigger asChild><Button variant="outline" size="sm" className={`h-8 border-border bg-secondary text-foreground ${(outputLink || imageLink) ? 'border-green-500 text-green-600 dark:text-green-400' : ''}`}><LinkIcon className="h-3.5 w-3.5 mr-2" /> {(outputLink || imageLink) ? 'Attached' : 'Add Links'}</Button></DialogTrigger>
                         <DialogContent className="bg-card border-border text-foreground"><DialogHeader><DialogTitle>Attach Assets</DialogTitle></DialogHeader><div className="space-y-4 pt-2"><div className="bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-lg text-sm text-yellow-700 dark:text-yellow-400">⚠️ Security Note: Tab switching is allowed ONLY while this popup is open.</div><div className="space-y-2"><Label className="text-xs uppercase text-muted-foreground font-bold">Output Link</Label><Input placeholder="https://..." value={outputLink} onChange={(e) => setOutputLink(e.target.value)} className="bg-background border-border" /></div><div className="space-y-2"><Label className="text-xs uppercase text-muted-foreground font-bold">Screenshot Link</Label><Input placeholder="https://imgur.com/..." value={imageLink} onChange={(e) => setImageLink(e.target.value)} className="bg-background border-border" /></div></div><DialogFooter><Button onClick={() => setLinkDialogOpen(false)}>Done</Button></DialogFooter></DialogContent>
                     </Dialog>
-                    {aiScore !== null && <Badge variant="outline" className="text-green-600 dark:text-green-400 border-green-500/30 bg-green-500/10 text-sm">AI Score: {aiScore}/100</Badge>}
+                    {aiScore !== null && <Badge variant="outline" className="text-green-600 dark:text-green-400 border-green-500/30 bg-green-500/10 text-sm whitespace-nowrap">AI Score: {aiScore}/10</Badge>}
                     <Button variant="outline" size="sm" onClick={() => upsertSubmission('draft')} disabled={isSaving} className="h-8 border-border bg-secondary text-foreground">{isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-2" />} Save</Button>
                     <Button size="sm" onClick={handleSubmitClick} className="h-8 bg-primary hover:bg-primary/90 text-primary-foreground font-medium">Submit <Send className="h-3.5 w-3.5 ml-2" /></Button>
                 </div>
@@ -716,24 +737,32 @@ export default function EditorPage() {
                                     {activeTab === 'code' && <Button size="sm" onClick={handleRunCode} disabled={isRunning} className="h-8 bg-green-600 hover:bg-green-700 text-white text-sm gap-2 rounded-lg font-medium shadow-sm transition-all">{isRunning ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <PlayCircle size={16} />} Run & Check</Button>}
                                 </div>
                             </div>
+                            
+                            {/* UPDATED: Resizable Console Logic */}
                             <TabsContent value="code" className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden overflow-hidden">
-                                <div className="flex-1 min-h-0 relative">
-                                    <CodeEditor
-                                        content={codeContent}
-                                        language={selectedLang}
-                                        theme={theme}
-                                        filename={`main.${selectedLang === 'python' ? 'py' : selectedLang === 'asm' ? 'asm' : selectedLang === 'c' ? 'c' : selectedLang === 'cpp' ? 'cpp' : 'txt'}`}
-                                        onChange={setCodeContent}
-                                    />
-                                </div>
-                                <div className="h-48 border-t border-border bg-zinc-950 flex flex-col shrink-0">
-                                    <div className="px-4 py-1.5 bg-muted text-xs text-muted-foreground uppercase tracking-wider flex items-center justify-between transition-colors">
-                                        <div className="flex items-center gap-2"><TerminalIcon size={14} /> Console Output</div>
-                                        <button onClick={handleCopyToReport} className="flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer text-muted-foreground hover:bg-secondary px-2 py-0.5 rounded-md"><CopyPlus size={12} /> <span className="text-xs font-semibold">Append to Report</span></button>
-                                    </div>
-                                    <div className="flex-1 overflow-hidden relative p-1"><WebTerminal ref={terminalRef} assignmentId={practicalId || ''} /></div>
-                                </div>
+                                <PanelGroup direction="vertical">
+                                    <Panel defaultSize={70} minSize={20} className="relative flex flex-col">
+                                        <CodeEditor
+                                            content={codeContent}
+                                            language={selectedLang}
+                                            theme={theme}
+                                            filename={`main.${selectedLang === 'python' ? 'py' : selectedLang === 'asm' ? 'asm' : selectedLang === 'c' ? 'c' : selectedLang === 'cpp' ? 'cpp' : 'txt'}`}
+                                            onChange={setCodeContent}
+                                        />
+                                    </Panel>
+                                    <PanelResizeHandle className="h-1.5 bg-border/50 hover:bg-primary/50 transition-colors cursor-row-resize flex items-center justify-center">
+                                        <div className="w-8 h-0.5 bg-border rounded-full" />
+                                    </PanelResizeHandle>
+                                    <Panel defaultSize={30} minSize={10} className="flex flex-col bg-zinc-950">
+                                        <div className="px-4 py-1.5 bg-muted text-xs text-muted-foreground uppercase tracking-wider flex items-center justify-between transition-colors shrink-0 flex-row">
+                                            <div className="flex items-center gap-2 whitespace-nowrap"><TerminalIcon size={14} /> Console Output</div>
+                                            <button onClick={handleCopyToReport} className="flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer text-muted-foreground hover:bg-secondary px-2 py-0.5 rounded-md whitespace-nowrap"><CopyPlus size={12} /> <span className="text-xs font-semibold">Append to Report</span></button>
+                                        </div>
+                                        <div className="flex-1 overflow-hidden relative p-1 w-full min-h-0"><WebTerminal ref={terminalRef} assignmentId={practicalId || ''} /></div>
+                                    </Panel>
+                                </PanelGroup>
                             </TabsContent>
+
                             <TabsContent value="report" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden bg-muted/30 dark:bg-background p-4 overflow-y-auto transition-colors">
                                 <div className="max-w-4xl mx-auto w-full h-full"><DocumentEditor initialValues={docSections} onChange={(id, val) => setDocSections(prev => ({ ...prev, [id]: val }))} activeSection={activeDocSection} onSectionChange={setActiveDocSection} /></div>
                             </TabsContent>
@@ -776,7 +805,7 @@ export default function EditorPage() {
                     {isRightCollapsed && (
                         <div className="w-10 flex flex-col items-center py-4 bg-muted/40 border-l border-border gap-4 shrink-0 transition-all">
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsRightCollapsed(false)}>
-                                <ChevronLeft size={16} />
+                                <ChevronRight size={16} />
                             </Button>
                             <div className="[writing-mode:vertical-lr] text-[10px] font-bold uppercase text-muted-foreground tracking-widest">AI Tutor</div>
                         </div>
@@ -796,4 +825,4 @@ export default function EditorPage() {
             </Dialog>
         </div>
     );
-}   
+}
