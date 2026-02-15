@@ -56,14 +56,13 @@ export default function BatchDashboard() {
       if (bErr) throw bErr;
       setBatchDetails(batch);
 
-      // 1. Fetch Students linked to this batch
+      // 1. Fetch Students
       const { data: batchStudents } = await supabase
         .from('batch_students')
         .select('student_id, profiles:student_id(*)')
         .eq('batch_id', batchId);
 
       const studentList = batchStudents?.map((bs: any) => bs.profiles) || [];
-      // Sort students by Enrollment number
       studentList.sort((a: any, b: any) => (a.enrollment_number || '').localeCompare(b.enrollment_number || ''));
       setStudents(studentList);
 
@@ -160,6 +159,37 @@ export default function BatchDashboard() {
     }
   };
 
+  // --- DUPLICATE TASK (NEW) ---
+  const handleDuplicate = async (task: BatchTaskRow) => {
+    if (!confirm(`Duplicate "${task.title}"?`)) return;
+    setLoading(true);
+    try {
+      // 1. Get full details from DB (to ensure we have everything)
+      const { data: original } = await supabase.from('batch_practicals').select('*').eq('id', task.id).single();
+      if (!original) throw new Error("Original task not found");
+
+      // 2. Prepare new payload (Remove ID/Dates, Add Copy to title)
+      const { id, created_at, updated_at, ...rest } = original;
+      const newPayload = {
+        ...rest,
+        title: `${original.title} (Copy)`,
+        created_by: user?.id,
+        status: 'active' // Ensure it's active even if original was something else
+      };
+
+      // 3. Insert
+      const { error } = await supabase.from('batch_practicals').insert([newPayload]);
+      if (error) throw error;
+
+      toast.success("Experiment duplicated successfully");
+      fetchData();
+    } catch (err: any) {
+      toast.error("Failed to duplicate: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // --- ARCHIVE ---
   const handleArchive = async (id: string) => {
     if (!id) {
@@ -188,12 +218,18 @@ export default function BatchDashboard() {
   // --- IMPORT LOGIC ---
   const openImportModal = async () => {
     setImportModalOpen(true);
-    const { data } = await supabase.from('batches').select('id, name, division, batch').neq('id', batchId);
+    const { data } = await supabase
+        .from('batches')
+        .select('id, name, division, batch')
+        .neq('id', batchId)
+        .eq('created_by', user?.id)
+        .order('created_at', { ascending: false });
     setAvailableBatches(data || []);
   };
 
   const handleSourceBatchSelect = async (sourceBatchId: string) => {
     setSelectedSourceBatch(sourceBatchId);
+    
     const sourceBatch = availableBatches.find(b => b.id === sourceBatchId);
     if (!sourceBatch) return;
 
@@ -202,6 +238,7 @@ export default function BatchDashboard() {
       .select('*')
       .eq('division', sourceBatch.division)
       .eq('batch', sourceBatch.batch)
+      .eq('created_by', user?.id)
       .neq('status', 'archived');
 
     setSourcePracticals(data || []);
@@ -277,7 +314,6 @@ export default function BatchDashboard() {
         )}
       </header>
 
-      {/* Show REDO Notification for Students */}
       {!isTeacher && practicals.some(p => p.studentStatus === 'redo_requested') && (
         <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 p-4 rounded-lg flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5" />
@@ -299,7 +335,6 @@ export default function BatchDashboard() {
           </TabsList>
         </div>
 
-        {/* --- 1. EXPERIMENTS TAB --- */}
         <TabsContent value="experiments" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
           <div className="flex items-center gap-4 max-w-md">
             <div className="relative flex-1">
@@ -314,10 +349,11 @@ export default function BatchDashboard() {
             onEdit={(row) => { setEditingRow(row); setModalOpen(true); }}
             onDelete={(id) => handleArchive(id)}
             onViewResponses={(row) => { setSelectedPractical(row); setListModalOpen(true); }}
+            // @ts-ignore - Ignoring just in case the prop isn't defined in the child yet
+            onDuplicate={(row) => handleDuplicate(row)} 
           />
         </TabsContent>
 
-        {/* --- 2. STUDENTS TAB (UPDATED) --- */}
         {isTeacher && (
           <TabsContent value="students" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
             <div className="flex items-center gap-4 max-w-md">
@@ -360,7 +396,6 @@ export default function BatchDashboard() {
           </TabsContent>
         )}
 
-        {/* --- 3. ANALYTICS TAB --- */}
         {isTeacher && (
           <TabsContent value="analytics">
             <BatchAnalytics batchId={batchId!} totalPracticals={practicals.length} />
@@ -395,17 +430,21 @@ export default function BatchDashboard() {
                     </button>
                   </div>
                   <div className="border border-border rounded-xl overflow-hidden max-h-[300px] overflow-y-auto">
-                    {sourcePracticals.map(p => (
-                      <div key={p.id} className={cn("flex items-center gap-3 p-3.5 border-b border-border last:border-0 hover:bg-muted/50 cursor-pointer transition-colors", selectedImportIds.includes(p.id) && "bg-primary/5")} onClick={() => toggleImportSelection(p.id)}>
-                        <div className={cn("text-muted-foreground", selectedImportIds.includes(p.id) && "text-primary")}>
-                          {selectedImportIds.includes(p.id) ? <CheckSquare size={18} /> : <Square size={18} />}
+                    {sourcePracticals.length === 0 ? (
+                        <p className="p-4 text-center text-sm text-muted-foreground italic">No experiments found in this batch.</p>
+                    ) : (
+                        sourcePracticals.map(p => (
+                        <div key={p.id} className={cn("flex items-center gap-3 p-3.5 border-b border-border last:border-0 hover:bg-muted/50 cursor-pointer transition-colors", selectedImportIds.includes(p.id) && "bg-primary/5")} onClick={() => toggleImportSelection(p.id)}>
+                            <div className={cn("text-muted-foreground", selectedImportIds.includes(p.id) && "text-primary")}>
+                            {selectedImportIds.includes(p.id) ? <CheckSquare size={18} /> : <Square size={18} />}
+                            </div>
+                            <div className="flex-1">
+                            <p className="text-sm font-medium text-foreground">{p.title}</p>
+                            <p className="text-xs text-muted-foreground">Exp {p.experiment_number} • {p.total_points} Points</p>
+                            </div>
                         </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-foreground">{p.title}</p>
-                          <p className="text-xs text-muted-foreground">Exp {p.experiment_number} • {p.total_points} Points</p>
-                        </div>
-                      </div>
-                    ))}
+                        ))
+                    )}
                   </div>
                 </div>
               )}

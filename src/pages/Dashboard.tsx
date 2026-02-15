@@ -178,9 +178,10 @@ export default function Dashboard() {
 
         let practicals: any[] = [];
         if (profile?.batch && profile?.division) {
+          // FIX: Added 'batches!inner(id)' to ensure deleted batches don't show up
           const { data: pracs } = await supabase
             .from('batch_practicals')
-            .select('id, title, deadline, experiment_number')
+            .select('id, title, deadline, experiment_number, batches!inner(id)')
             .eq('batch', profile.batch)
             .eq('division', profile.division)
             .gt('deadline', new Date().toISOString());
@@ -223,9 +224,10 @@ export default function Dashboard() {
           .select('id, title')
           .eq('created_by', user!.id);
 
+        // FIX: Added 'batches!inner(id)' so ghosts from deleted batches are gone
         const { data: myPracticals } = await supabase
           .from('batch_practicals')
-          .select('id, title, experiment_number')
+          .select('id, title, experiment_number, batches!inner(id)')
           .eq('created_by', user!.id);
 
         const assignmentIds = new Set((myAssignments || []).map((a: any) => a.id));
@@ -233,20 +235,21 @@ export default function Dashboard() {
         const theoryCount = assignmentIds.size;
         const pracCount = practicalIds.size;
 
-        // Step 2: Fetch ALL submissions — EXACT same query as working Submissions page (line 63-65)
+        // Step 2: Fetch ALL submissions
         const { data: rawSubmissions } = await supabase
           .from('submissions')
           .select('practical_id, assignment_id, status');
 
         const allSubmissions = rawSubmissions || [];
 
-        // Step 3: Filter client-side EXACTLY like Submissions page does (lines 70, 81)
+        // Step 3: Filter client-side - This now automatically filters out deleted batch submissions
+        // because 'practicalIds' will only contain valid practicals from existing batches.
         const mySubmissions = allSubmissions.filter(s =>
           (s.assignment_id && assignmentIds.has(s.assignment_id)) ||
           (s.practical_id && practicalIds.has(s.practical_id))
         );
 
-        // Count pending — EXACTLY like Submissions page calculateStats (line 103)
+        // Count pending
         const pendingRevCount = mySubmissions.filter(s => s.status === 'submitted').length;
 
         // Now fetch detailed submissions for display (with student info)
@@ -263,7 +266,7 @@ export default function Dashboard() {
         const asgnMap = new Map((myAssignments || []).map((a: any) => [a.id, a]));
         const pracMap = new Map((myPracticals || []).map((p: any) => [p.id, p]));
 
-        // Get pending ones with student info (use detailedAll which has all fields)
+        // Get pending ones with student info
         const pendingAll = detailedAll
           .filter((s: any) => s.status === 'submitted')
           .sort((a: any, b: any) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime());

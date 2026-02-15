@@ -50,14 +50,17 @@ export default function Submissions() {
       const { count: studentCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student');
       const totalStudents = studentCount || 0;
 
+      // 1. Fetch Assignments (Linked to Subjects)
       const { data: assignments } = await supabase
         .from('assignments')
         .select('id, title, created_at, subjects(name, code)')
         .eq('created_by', user.id);
 
+      // 2. Fetch Practicals (Linked to Batches)
+      // FIX: Added 'batches!inner(id)' to filter out practicals whose batch is deleted
       const { data: practicals } = await supabase
         .from('batch_practicals')
-        .select('id, title, created_at, batch, division, experiment_number')
+        .select('id, title, created_at, batch, division, experiment_number, batches!inner(id)')
         .eq('created_by', user.id);
 
       const { data: submissions } = await supabase
@@ -84,7 +87,7 @@ export default function Submissions() {
           title: p.title,
           type: 'practical',
           subtitle: `Exp ${p.experiment_number} • Div ${p.division} • Batch ${p.batch}`,
-          stats: calculateStats(relatedSubs, 20)
+          stats: calculateStats(relatedSubs, 20) // Assuming ~20 students per batch
         };
       });
 

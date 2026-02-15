@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Pencil, Eye, Trash2, Play, FileEdit, CheckCircle2, BrainCircuit } from 'lucide-react';
+import { Pencil, Eye, Trash2, Play, FileEdit, CheckCircle2, BrainCircuit, Copy } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -49,6 +49,7 @@ interface BatchPracticalsTableProps {
   onEdit: (item: BatchTaskRow) => void;
   onDelete: (id: string) => void;
   onViewResponses: (item: BatchTaskRow) => void;
+  onDuplicate?: (item: BatchTaskRow) => void; // New Prop
 }
 
 export function BatchPracticalsTable({
@@ -57,6 +58,7 @@ export function BatchPracticalsTable({
   onEdit,
   onDelete,
   onViewResponses,
+  onDuplicate, // Destructure New Prop
 }: BatchPracticalsTableProps) {
 
   const isTeacher = userRole === 'teacher' || userRole === 'hod';
@@ -171,10 +173,23 @@ export function BatchPracticalsTable({
                           </Link>
                         </Button>
                       )}
-
+                      
                       {isTeacher && (
                         <TooltipProvider>
                           <div className="flex gap-1">
+                            
+                            {/* DUPLICATE BUTTON */}
+                            {onDuplicate && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-blue-600 hover:bg-blue-50" onClick={() => onDuplicate(item)}>
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Duplicate Experiment</p></TooltipContent>
+                              </Tooltip>
+                            )}
+
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-500/10" onClick={() => onViewResponses(item)}>

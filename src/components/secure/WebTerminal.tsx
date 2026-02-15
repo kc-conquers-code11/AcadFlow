@@ -9,7 +9,9 @@ interface WebTerminalProps {
 }
 
 export interface WebTerminalRef {
-    run: (command: string) => void;
+    // Updated signature to support log types
+    run: (command: string, type?: 'stdout' | 'stderr' | 'system') => void;
+    clear: () => void;
 }
 
 const WebTerminal = forwardRef<WebTerminalRef, WebTerminalProps>(({ onExecute }, ref) => {
@@ -19,11 +21,26 @@ const WebTerminal = forwardRef<WebTerminalRef, WebTerminalProps>(({ onExecute },
     const commandBuffer = useRef('');
 
     useImperativeHandle(ref, () => ({
-        run: (command: string) => {
+        run: (output: string, type: 'stdout' | 'stderr' | 'system' = 'stdout') => {
              if (xtermRef.current) {
-                 xtermRef.current.writeln(`\r\n$ ${command}`);
-                 handleCommand(command, xtermRef.current);
+                 // Handle ANSI Colors for Realistic Output
+                 let formattedOutput = output;
+                 
+                 if (type === 'stderr') {
+                     // Red color for errors
+                     formattedOutput = `\x1b[31m${output}\x1b[0m`;
+                 } else if (type === 'system') {
+                     // Bold Blue for system messages
+                     formattedOutput = `\x1b[1;34m${output}\x1b[0m`;
+                 }
+
+                 // Ensure newlines are handled correctly for xterm
+                 const lines = formattedOutput.split('\n');
+                 lines.forEach(line => xtermRef.current?.writeln(line));
              }
+        },
+        clear: () => {
+            xtermRef.current?.clear();
         }
     }));
 
@@ -32,10 +49,11 @@ const WebTerminal = forwardRef<WebTerminalRef, WebTerminalProps>(({ onExecute },
 
         const term = new Terminal({
             cursorBlink: true,
-            theme: { background: '#000000', foreground: '#a9b7c6' },
-            fontFamily: "'Fira Code', monospace",
-            fontSize: 12,
-            rows: 8,
+            theme: { background: '#000000', foreground: '#a9b7c6', cursor: '#ffffff' },
+            fontFamily: "'Fira Code', 'Cascadia Code', monospace",
+            fontSize: 13,
+            lineHeight: 1.4,
+            rows: 10,
         });
 
         const fitAddon = new FitAddon();
@@ -44,7 +62,9 @@ const WebTerminal = forwardRef<WebTerminalRef, WebTerminalProps>(({ onExecute },
         
         try { fitAddon.fit(); } catch(e) { /* ignore fit error on init */ }
 
-        term.write('\x1b[1;34mstudent@acadflow\x1b[0m:\x1b[1;32m~/lab\x1b[0m$ ');
+        // Initial Prompt
+        term.writeln('\x1b[1;34mWelcome to AcadFlow Secure Terminal v2.0\x1b[0m');
+        term.write('\x1b[1;32mstudent@lab\x1b[0m:\x1b[1;34m~\x1b[0m$ ');
 
         xtermRef.current = term;
         fitAddonRef.current = fitAddon;
@@ -57,7 +77,7 @@ const WebTerminal = forwardRef<WebTerminalRef, WebTerminalProps>(({ onExecute },
                 term.write('\r\n');
                 if (command) await handleCommand(command, term);
                 commandBuffer.current = '';
-                term.write('\x1b[1;34mstudent@acadflow\x1b[0m:\x1b[1;32m~/lab\x1b[0m$ ');
+                term.write('\x1b[1;32mstudent@lab\x1b[0m:\x1b[1;34m~\x1b[0m$ ');
             } else if (code === 127) { // Backspace
                 if (commandBuffer.current.length > 0) {
                     commandBuffer.current = commandBuffer.current.slice(0, -1);
@@ -87,11 +107,16 @@ const WebTerminal = forwardRef<WebTerminalRef, WebTerminalProps>(({ onExecute },
              const output = await onExecute(command);
              term.write(output.replace(/\n/g, '\r\n') + '\r\n');
         } else {
-             term.write(`Command executed: ${command}\r\n`);
+             // Mock echo for basic interaction
+             if(command.startsWith('echo ')) {
+                 term.writeln(command.substring(5));
+             } else {
+                 term.writeln(`\x1b[31mbash: ${command}: command not found\x1b[0m`);
+             }
         }
     };
 
-    return <div className="h-full w-full bg-black p-1" ref={terminalRef} />;
+    return <div className="h-full w-full bg-black p-2" ref={terminalRef} />;
 });
 
 WebTerminal.displayName = 'WebTerminal';

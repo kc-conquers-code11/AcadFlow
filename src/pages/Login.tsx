@@ -17,7 +17,8 @@ import {
   Moon,
   Eye,
   EyeOff,
-  Lock
+  Lock,
+  Check
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -54,6 +55,50 @@ const CloudflareLogo = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// --- MOCK CLOUDFLARE WIDGET ---
+const CloudflareWidget = ({ onVerify, isHuman }: { onVerify: (val: boolean) => void, isHuman: boolean }) => {
+  const [status, setStatus] = useState<'idle' | 'verifying' | 'success'>(isHuman ? 'success' : 'idle');
+
+  const handleClick = () => {
+    if (status !== 'idle') return;
+    setStatus('verifying');
+
+    // Simulate network delay
+    setTimeout(() => {
+      setStatus('success');
+      onVerify(true);
+    }, 1200);
+  };
+
+  return (
+    <div className="w-full h-[65px] bg-[#f9f9f9] dark:bg-[#1a1a1a] border border-[#d6d6d6] dark:border-[#333] rounded-[4px] flex items-center justify-between px-3 mt-4 mb-2 select-none shadow-sm transition-colors">
+      <div className="flex items-center gap-3">
+        <div
+          onClick={handleClick}
+          className={cn(
+            "w-[28px] h-[28px] bg-white dark:bg-[#222] border border-[#c1c1c1] dark:border-[#444] rounded-[2px] cursor-pointer flex items-center justify-center transition-all",
+            status === 'idle' && "hover:border-[#a0a0a0]",
+            status === 'success' && "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]"
+          )}
+        >
+          {status === 'verifying' && <Loader2 className="animate-spin text-foreground" size={18} />}
+          {status === 'success' && <Check className="text-emerald-500" size={20} strokeWidth={4} />}
+        </div>
+        <span className="text-[14px] font-medium text-[#404040] dark:text-[#e0e0e0]">
+          {status === 'success' ? 'Success!' : 'Verify you are human'}
+        </span>
+      </div>
+
+      <div className="flex flex-col items-center justify-center gap-0.5 pt-1">
+        <CloudflareLogo className="h-6 w-6 text-[#404040] dark:text-[#808080]" />
+        <div className="text-[9px] text-[#555] dark:text-[#666] leading-none text-center font-medium">
+          <span className="block mb-0.5">Privacy - Terms</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function Login() {
   const PROFILE = "https://www.linkedin.com/in/kc-thedev";
 
@@ -68,6 +113,7 @@ export default function Login() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isHuman, setIsHuman] = useState(false);
 
   // Hooks
   const { login, signup } = useAuth();
@@ -78,6 +124,15 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // MANDATORY CLOUDFLARE CHECK
+    if (!isHuman) {
+      toast.error("Verification Required", {
+        description: "Please complete the human verification before proceeding.",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -86,7 +141,6 @@ export default function Login() {
         if (error) throw error;
         toast.success("Welcome back!");
 
-        // CHECK IF USER IS ADMIN AND REDIRECT
         if (data.user?.user_metadata?.role === 'admin') {
           navigate('/admin');
         } else {
@@ -244,15 +298,16 @@ export default function Login() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              <AnimatePresence>
+              <AnimatePresence mode='wait'>
                 {!isLogin && (
                   <motion.div
-                    initial={{ height: 0, opacity: 0, marginBottom: 0 }}
-                    animate={{ height: 'auto', opacity: 1, marginBottom: 20 }}
-                    exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+                    key="signup-fields"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="space-y-2">
+                    <div className="space-y-2 mb-4">
                       <Label htmlFor="name">Full Name</Label>
                       <Input
                         id="name"
@@ -374,15 +429,21 @@ export default function Login() {
                 </div>
               )}
 
+              {/* SECURITY WIDGET INTEGRATION */}
+              <CloudflareWidget onVerify={setIsHuman} isHuman={isHuman} />
+
               <Button
                 type="submit"
-                disabled={isLoading}
-                className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg shadow-primary/20 flex items-center justify-center gap-2 group/btn"
+                disabled={isLoading || !isHuman}
+                className={cn(
+                  "w-full h-11 transition-all font-medium rounded-lg flex items-center justify-center gap-2 group/btn shadow-lg shadow-primary/20",
+                  !isHuman ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                )}
               >
                 {isLoading ? (
                   <><Loader2 size={16} className="animate-spin" /> Processing...</>
                 ) : (
-                  <>{isLogin ? "Access Portal" : "Create Account"} <ArrowRight size={16} className="group-hover/btn:translate-x-0.5 transition-transform" /></>
+                  <>{isLogin ? "Access Portal" : "Create Account"} <ArrowRight size={16} className={cn("transition-transform", isHuman && "group-hover/btn:translate-x-0.5")} /></>
                 )}
               </Button>
             </form>
@@ -392,7 +453,10 @@ export default function Login() {
                 {isLogin ? "First time here? " : "Already registered? "}
                 <button
                   type="button"
-                  onClick={() => setIsLogin(!isLogin)}
+                  onClick={() => {
+                    setIsLogin(!isLogin);
+                    setIsHuman(false); // Reset captcha on switch
+                  }}
                   className="font-semibold text-primary hover:text-primary/80 transition-colors"
                 >
                   {isLogin ? "Create an account" : "Sign in"}
@@ -411,22 +475,15 @@ export default function Login() {
                   transition={{ delay: 0.5 }}
                   className="absolute -right-2 -bottom-4 md:-right-6 md:-bottom-6 cursor-pointer z-50 group"
                 >
-                  {/* Glassmorphism Capsule */}
                   <div className="flex items-center gap-3 bg-black/90 dark:bg-black/80 backdrop-blur-md border border-white/10 pl-2 pr-4 py-2 rounded-full shadow-2xl hover:shadow-primary/20 transition-all hover:scale-105 hover:border-primary/30">
-
-                    {/* Glowing Logo Container */}
                     <div className="relative h-8 w-8 bg-[#F38020] rounded-full flex items-center justify-center shrink-0">
                       <CloudflareLogo className="h-5 w-5 text-white" />
-                      {/* Scan Line Animation */}
-                      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent rounded-full opacity-0 group-hover:animate-pulse" />
+                      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
-
-                    {/* Text Details */}
                     <div className="flex flex-col items-start leading-none">
                       <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Secured by</span>
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-bold text-white tracking-tight">Cloudflare</span>
-                        {/* Blinking Live Indicator */}
                         <span className="relative flex h-2 w-2">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -436,7 +493,6 @@ export default function Login() {
                   </div>
                 </motion.div>
               </TooltipTrigger>
-
               <TooltipContent side="left" sideOffset={10} className="bg-zinc-900 border-zinc-800 text-white p-3 rounded-lg shadow-xl">
                 <div className="flex items-center gap-3">
                   <div className="bg-emerald-500/20 p-2 rounded-md">
@@ -450,7 +506,6 @@ export default function Login() {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-
         </motion.div>
       </main>
 

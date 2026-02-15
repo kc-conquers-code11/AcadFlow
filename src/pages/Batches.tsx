@@ -25,17 +25,14 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import {
-  BookOpen,
   Plus,
-  Users,
   ArrowRight,
   Copy,
   Loader2,
   LogIn,
-  GraduationCap,
-  Calendar,
   Layers,
-  Trash2
+  Trash2,
+  User
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -54,7 +51,7 @@ export default function Batches() {
     academicYear: '2025-26',
     year: '2',
     division: 'A',
-    batch: 'A', // New Field
+    batch: 'A',
     semester: '4'
   });
 
@@ -125,7 +122,7 @@ export default function Batches() {
           academic_year: formData.academicYear,
           year: parseInt(formData.year),
           division: formData.division,
-          batch: formData.batch, // Sending Batch A/B/C
+          batch: formData.batch,
           semester: parseInt(formData.semester),
           code: code,
           created_by: user.id
@@ -133,13 +130,10 @@ export default function Batches() {
 
       if (error) throw error;
 
-      toast.success(`Batch created! Code: ${code}`, {
-        description: "Share this code with students.",
-      });
+      toast.success(`Batch created! Code: ${code}`);
       navigator.clipboard.writeText(code);
 
       setIsCreateOpen(false);
-      // Reset form
       setFormData({
         name: '',
         academicYear: '2024-25',
@@ -198,22 +192,42 @@ export default function Batches() {
     }
   };
 
+  // --- FIXED & SIMPLIFIED DELETE LOGIC ---
   const handleDeleteBatch = async (batchId: string) => {
-    if (!confirm("Are you sure you want to delete this batch? All associated data will be removed.")) return;
+    if (!confirm("Are you sure? This will remove the batch and un-enroll all students.")) return;
 
     try {
-      const { error } = await supabase
+      // 1. Delete Linked Students first (to avoid FK constraints)
+      const { error: linkError } = await supabase
+        .from('batch_students')
+        .delete()
+        .eq('batch_id', batchId);
+
+      if (linkError) {
+        console.warn("Link cleanup issue:", linkError);
+        // We continue anyway, hoping cascade works or permission allows
+      }
+
+      // 2. Delete the Batch (Removed batch_practicals call to fix 400 error)
+      const { data, error } = await supabase
         .from('batches')
         .delete()
-        .eq('id', batchId);
+        .eq('id', batchId)
+        .select();
 
       if (error) throw error;
 
+      if (!data || data.length === 0) {
+        throw new Error("Could not delete. Please check if you have permission (RLS Policy).");
+      }
+
       toast.success("Batch deleted successfully");
       setBatches(prev => prev.filter(b => b.id !== batchId));
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to delete batch");
+      
+    } catch (err: any) {
+      console.error("Delete Error:", err);
+      toast.error(err.message || "Failed to delete batch");
+      fetchBatches(); // Refresh to show real state
     }
   };
 
@@ -223,7 +237,7 @@ export default function Batches() {
   };
 
   return (
-    <div className="flex flex-col gap-8 p-8 min-h-[calc(100vh-4rem)] bg-background/50">
+    <div className="flex flex-col gap-8 p-8 min-h-[calc(100vh-4rem)] bg-background/50 animate-in fade-in duration-500">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b pb-6">
         <div className="space-y-2">
@@ -233,7 +247,7 @@ export default function Batches() {
           <p className="text-lg text-muted-foreground max-w-2xl">
             {user.role === 'student'
               ? 'Access your course materials, assignments, and labs from here.'
-              : 'Orchestrate your academic divisions and student groups efficiently.'}
+              : 'Manage your academic divisions and student groups efficiently.'}
           </p>
         </div>
 
@@ -286,7 +300,6 @@ export default function Batches() {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
 
-                  {/* Batch Name */}
                   <div className="grid gap-2">
                     <Label htmlFor="name">Batch Name</Label>
                     <Input
@@ -297,7 +310,6 @@ export default function Batches() {
                     />
                   </div>
 
-                  {/* Row 1: Year & Div */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label>Year</Label>
@@ -334,7 +346,6 @@ export default function Batches() {
                     </div>
                   </div>
 
-                  {/* Row 2: Batch & Sem */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label>Practical Batch</Label>
@@ -371,7 +382,6 @@ export default function Batches() {
                     </div>
                   </div>
 
-                  {/* Academic Year */}
                   <div className="grid gap-2">
                     <Label>Academic Year</Label>
                     <Input
@@ -394,7 +404,6 @@ export default function Batches() {
         </div>
       </div>
 
-      {/* Content Grid */}
       {loading ? (
         <div className="flex h-60 items-center justify-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />

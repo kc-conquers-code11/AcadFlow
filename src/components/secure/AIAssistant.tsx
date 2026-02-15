@@ -19,9 +19,11 @@ interface AIAssistantProps {
     mode: 'FULL_ASSISTANCE' | 'LIMITED';
     codeContext: string;
     onLog?: (prompt: string, response: string) => void;
+    subject?: string;
+    taskTitle?: string;
 }
 
-export default function AIAssistant({ mode, codeContext, onLog }: AIAssistantProps) {
+export default function AIAssistant({ mode, codeContext, onLog, subject, taskTitle }: AIAssistantProps) {
     const [messages, setMessages] = useState<Message[]>([
         {
             id: 'init',
@@ -65,6 +67,8 @@ export default function AIAssistant({ mode, codeContext, onLog }: AIAssistantPro
                 You are a helpful, encouraging, and strict Computer Science Tutor.
                 
                 Current Context:
+                - Subject: ${subject || 'Computer Science'}
+                - Task: ${taskTitle || 'Generic Coding Task'}
                 - The student is working on a coding problem.
                 - Their current code is provided below.
                 
@@ -154,16 +158,16 @@ export default function AIAssistant({ mode, codeContext, onLog }: AIAssistantPro
                         >
                             {/* Avatar */}
                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 shadow-sm ${m.role === 'user'
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white'
                                 }`}>
                                 {m.role === 'user' ? <User size={14} /> : <Bot size={14} />}
                             </div>
 
                             {/* Message Bubble */}
                             <div className={`rounded-xl px-3.5 py-2.5 text-sm leading-relaxed max-w-[85%] transition-colors ${m.role === 'user'
-                                    ? 'bg-primary text-primary-foreground rounded-br-sm'
-                                    : 'bg-muted border border-border text-foreground rounded-bl-sm'
+                                ? 'bg-primary text-primary-foreground rounded-br-sm'
+                                : 'bg-muted border border-border text-foreground rounded-bl-sm'
                                 }`}>
                                 {m.role === 'user' ? (
                                     <p>{m.content}</p>
