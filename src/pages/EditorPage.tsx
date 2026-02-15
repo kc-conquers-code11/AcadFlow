@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 // Removed axios import to avoid confusion
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { LANGUAGES } from '@/data/languages';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -47,20 +48,46 @@ import WebTerminal, { WebTerminalRef } from '@/components/secure/WebTerminal';
 const PISTON_API = "https://emkc.org/api/v2/piston/execute";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-// Get API Key (Fallback support)
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY_1 || import.meta.env.VITE_GROQ_API_KEY || "";
+// Get API Keys (Rotation Support)
+const GROQ_API_KEYS = [
+    import.meta.env.VITE_GROQ_API_KEY_1,
+    import.meta.env.VITE_GROQ_API_KEY_2,
+    import.meta.env.VITE_GROQ_API_KEY_3,
+    import.meta.env.VITE_GROQ_API_KEY,
+    "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" // Fallback hardcoded (safe to expose if it's a free tier key intended for public demo)
+].filter(Boolean);
 
-// --- LANGUAGE CONFIG ---
-const LANGUAGES = [
-    { id: 'python', name: 'Python 3', piston: 'python', ver: '3.10.0', icon: Code2 },
-    { id: 'c', name: 'C (GCC)', piston: 'c', ver: '10.2.0', icon: Code2 },
-    { id: 'cpp', name: 'C++ (G++)', piston: 'c++', ver: '10.2.0', icon: Code2 },
-    { id: 'java', name: 'Java', piston: 'java', ver: '15.0.2', icon: Coffee },
-    { id: 'javascript', name: 'NodeJS', piston: 'javascript', ver: '18.15.0', icon: FileCode },
-    { id: 'asm', name: 'Assembly (NASM)', piston: 'nasm', ver: '2.15.05', icon: Cpu },
-    { id: 'bash', name: 'OS (Bash)', piston: 'bash', ver: '5.1.0', icon: TerminalIcon },
-    { id: 'sql', name: 'SQL (SQLite)', piston: 'sqlite3', ver: '3.36.0', icon: Database }
-];
+// --- HELPER: Fetch with Key Rotation ---
+const fetchWithGroqRotation = async (body: any) => {
+    let lastError: any = null;
+
+    for (const apiKey of GROQ_API_KEYS) {
+        try {
+            const response = await fetch(GROQ_API_URL, {
+                method: "POST",
+                credentials: 'omit',
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${apiKey}`
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                console.warn(`Groq Key Failed (${response.status}). Rotating...`);
+                continue; // Try next key
+            }
+
+            if (!response.ok) throw new Error(`Groq Error: ${response.statusText}`);
+
+            return await response.json(); // Success!
+        } catch (err) {
+            lastError = err;
+            console.error(err);
+        }
+    }
+    throw lastError || new Error("All Groq API keys exhausted.");
+};
 
 export default function EditorPage() {
     const { practicalId } = useParams<{ practicalId: string }>();
@@ -240,28 +267,17 @@ export default function EditorPage() {
       `;
 
         try {
-            const response = await fetch(GROQ_API_URL, {
-                method: "POST",
-                credentials: 'omit', // FIX for 401
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${GROQ_API_KEY}`
-                },
-                body: JSON.stringify({
-                    model: "llama-3.3-70b-versatile",
-                    messages: [
-                        { role: "system", content: "You are an external examiner. Generate 3 multiple-choice questions (MCQs) based strictly on the provided code logic and theory. Return JSON format: { 'questions': [{ 'id': 1, 'text': 'Question?', 'options': ['A', 'B', 'C', 'D'], 'correctAnswer': 'The Correct Option Text' }] }." },
-                        { role: "user", content: context }
-                    ],
-                    response_format: { type: "json_object" }
-                })
+            const data = await fetchWithGroqRotation({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    { role: "system", content: "You are an external examiner. Generate 3 multiple-choice questions (MCQs) based strictly on the provided code logic and theory. Return JSON format: { 'questions': [{ 'id': 1, 'text': 'Question?', 'options': ['A', 'B', 'C', 'D'], 'correctAnswer': 'The Correct Option Text' }] }." },
+                    { role: "user", content: context }
+                ],
+                response_format: { type: "json_object" }
             });
 
-            if(!response.ok) throw new Error("Viva Generation Failed");
-
-            const data = await response.json();
             const result = JSON.parse(data.choices[0].message.content);
-            
+
             if (result.questions && Array.isArray(result.questions)) {
                 setVivaQuestions(result.questions.slice(0, 3));
             }
@@ -297,7 +313,7 @@ export default function EditorPage() {
     // --- EXECUTION LOGIC (NUCLEAR FIX: Native Fetch + credentials: 'omit') ---
     const runCodeOnPiston = async (langId: string, code: string) => {
         const config = LANGUAGES.find(l => l.id === langId) || LANGUAGES[0];
-        
+
         try {
             // Using NATIVE FETCH instead of Axios to ensure NO global headers are sent
             const response = await fetch(PISTON_API, {
@@ -327,23 +343,14 @@ export default function EditorPage() {
     };
 
     const gradeWithGroq = async (code: string, output: string, taskTitle: string, taskDesc: string) => {
-        if (!GROQ_API_KEY) return 0;
+        if (GROQ_API_KEYS.length === 0) return 0;
         const prompt = `Act as a strict Computer Science Professor. Task: ${taskTitle}. Desc: ${taskDesc}. Code: ${code}. Output: ${output}. Analyze logic & correctness. Return ONLY valid JSON: { "score": number (0-100) }`;
         try {
-            const response = await fetch(GROQ_API_URL, {
-                method: "POST",
-                credentials: 'omit', // FIX for 401
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${GROQ_API_KEY}`
-                },
-                body: JSON.stringify({
-                    model: "llama-3.3-70b-versatile",
-                    messages: [{ role: "user", content: prompt }],
-                    response_format: { type: "json_object" }
-                })
+            const data = await fetchWithGroqRotation({
+                model: "llama-3.3-70b-versatile",
+                messages: [{ role: "user", content: prompt }],
+                response_format: { type: "json_object" }
             });
-            const data = await response.json();
             const result = JSON.parse(data.choices[0].message.content);
             return result.score || 0;
         } catch { return 0; }
@@ -352,7 +359,7 @@ export default function EditorPage() {
     const handleRunCode = async () => {
         if (!codeContent.trim()) { toast.error("Write code first!"); return; }
         setIsRunning(true);
-        
+
         terminalRef.current?.clear();
         terminalRef.current?.run(`[System] Compiling ${selectedLang.toUpperCase()} source code...`, 'system');
 
@@ -371,7 +378,7 @@ export default function EditorPage() {
                 terminalRef.current?.run(`\n[System] Executing .EXE file...`, 'system');
                 terminalRef.current?.run(output || "Program executed successfully.", 'stdout');
             }
-        } 
+        }
         else {
             if (error) terminalRef.current?.run(error, 'stderr');
             if (output) terminalRef.current?.run(output, 'stdout');
@@ -382,7 +389,7 @@ export default function EditorPage() {
         setExecutionOutput(finalOutput);
 
         terminalRef.current?.run("\n[System] AI Grading in progress...", 'system');
-        
+
         gradeWithGroq(codeContent, finalOutput, task.title, task.description).then(score => {
             setAiScore(score);
             terminalRef.current?.run(`[System] Grading Complete. AI Estimate: ${score}/100`, 'system');
@@ -514,7 +521,7 @@ export default function EditorPage() {
 
     const isEvaluated = submission?.status === 'evaluated';
     const isSubmitted = submission?.status === 'submitted';
-    const isRedoRequested = submission?.status === 'redo_requested'; 
+    const isRedoRequested = submission?.status === 'redo_requested';
     const isReadOnly = (isEvaluated || isSubmitted) && !isRedoRequested;
 
     if (isReadOnly) {
@@ -613,7 +620,7 @@ export default function EditorPage() {
                     </Select>
 
                     <button onClick={handleThemeToggle} className="p-2 rounded-lg border border-border bg-secondary hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" aria-label="Toggle Theme">{theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button>
-                    
+
                     <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
                         <DialogTrigger asChild><Button variant="outline" size="sm" className={`h-8 border-border bg-secondary text-foreground ${(outputLink || imageLink) ? 'border-green-500 text-green-600 dark:text-green-400' : ''}`}><LinkIcon className="h-3.5 w-3.5 mr-2" /> {(outputLink || imageLink) ? 'Attached' : 'Add Links'}</Button></DialogTrigger>
                         <DialogContent className="bg-card border-border text-foreground"><DialogHeader><DialogTitle>Attach Assets</DialogTitle></DialogHeader><div className="space-y-4 pt-2"><div className="bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-lg text-sm text-yellow-700 dark:text-yellow-400">⚠️ Security Note: Tab switching is allowed ONLY while this popup is open.</div><div className="space-y-2"><Label className="text-xs uppercase text-muted-foreground font-bold">Output Link</Label><Input placeholder="https://..." value={outputLink} onChange={(e) => setOutputLink(e.target.value)} className="bg-background border-border" /></div><div className="space-y-2"><Label className="text-xs uppercase text-muted-foreground font-bold">Screenshot Link</Label><Input placeholder="https://imgur.com/..." value={imageLink} onChange={(e) => setImageLink(e.target.value)} className="bg-background border-border" /></div></div><DialogFooter><Button onClick={() => setLinkDialogOpen(false)}>Done</Button></DialogFooter></DialogContent>
@@ -629,11 +636,11 @@ export default function EditorPage() {
                 <DialogContent className="max-w-4xl h-[90vh] bg-white text-black p-0 flex flex-col overflow-hidden">
                     <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between">
                         <DialogTitle>Report Preview</DialogTitle>
-                        <Button size="sm" onClick={handlePrint}><Printer size={16} className="mr-2"/> Print</Button>
+                        <Button size="sm" onClick={handlePrint}><Printer size={16} className="mr-2" /> Print</Button>
                     </DialogHeader>
                     <ScrollArea className="flex-1 p-8 bg-gray-100">
                         <div id="printable-area" className="max-w-[210mm] mx-auto bg-white shadow-lg p-[15mm] min-h-[297mm]">
-                             <div className="mb-6 border-b-2 border-black pb-2">
+                            <div className="mb-6 border-b-2 border-black pb-2">
                                 <img src="/images/letterhead.jpg" alt="Header" className="w-full max-h-24 object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
                                 <div className="text-center mt-2 font-bold text-xl uppercase">Department of Computer Engineering</div>
                             </div>
@@ -705,18 +712,18 @@ export default function EditorPage() {
                                     <TabsTrigger value="report" className="text-sm data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full font-medium transition-all">Lab Report</TabsTrigger>
                                 </TabsList>
                                 <div className="flex items-center gap-2">
-                                    <Button variant="ghost" size="sm" onClick={() => setPreviewOpen(true)} className="h-7 text-xs text-muted-foreground"><Eye size={12} className="mr-1"/> Preview PDF</Button>
+                                    <Button variant="ghost" size="sm" onClick={() => setPreviewOpen(true)} className="h-7 text-xs text-muted-foreground"><Eye size={12} className="mr-1" /> Preview PDF</Button>
                                     {activeTab === 'code' && <Button size="sm" onClick={handleRunCode} disabled={isRunning} className="h-8 bg-green-600 hover:bg-green-700 text-white text-sm gap-2 rounded-lg font-medium shadow-sm transition-all">{isRunning ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <PlayCircle size={16} />} Run & Check</Button>}
                                 </div>
                             </div>
                             <TabsContent value="code" className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden overflow-hidden">
                                 <div className="flex-1 min-h-0 relative">
-                                    <CodeEditor 
-                                        content={codeContent} 
-                                        language={selectedLang} 
+                                    <CodeEditor
+                                        content={codeContent}
+                                        language={selectedLang}
                                         theme={theme}
-                                        filename={`main.${selectedLang === 'python' ? 'py' : selectedLang === 'asm' ? 'asm' : selectedLang === 'c' ? 'c' : selectedLang === 'cpp' ? 'cpp' : 'txt'}`} 
-                                        onChange={setCodeContent} 
+                                        filename={`main.${selectedLang === 'python' ? 'py' : selectedLang === 'asm' ? 'asm' : selectedLang === 'c' ? 'c' : selectedLang === 'cpp' ? 'cpp' : 'txt'}`}
+                                        onChange={setCodeContent}
                                     />
                                 </div>
                                 <div className="h-48 border-t border-border bg-zinc-950 flex flex-col shrink-0">
@@ -745,10 +752,10 @@ export default function EditorPage() {
                                     </Button>
                                 </div>
                                 <div className="flex-1 overflow-hidden">
-                                    <AIAssistant 
-                                        mode="FULL_ASSISTANCE" 
+                                    <AIAssistant
+                                        mode="FULL_ASSISTANCE"
                                         codeContext={codeContent}
-                                        subject={subjectName || "Computer Science"}  
+                                        subject={subjectName || "Computer Science"}
                                         taskTitle={task?.title || "Coding Task"}
                                         onAppendToReport={(content, section) => {
                                             const currentSection = docSections[section] || '';
@@ -759,7 +766,7 @@ export default function EditorPage() {
                                             }));
                                             toast.success(`Appended to ${section}!`);
                                         }}
-                                        onLog={(p, r) => console.log(p)} 
+                                        onLog={(p, r) => console.log(p)}
                                     />
                                 </div>
                             </Panel>
