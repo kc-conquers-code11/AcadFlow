@@ -14,7 +14,13 @@ import {
 
 // --- CONFIG ---
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const API_KEYS = (import.meta.env.VITE_GROQ_API_KEYS || "").split(',').filter(Boolean);
+
+// LOAD MULTIPLE KEYS FROM ENV
+const API_KEYS = [
+    import.meta.env.VITE_GROQ_API_KEY_1,
+    import.meta.env.VITE_GROQ_API_KEY_2,
+    import.meta.env.VITE_GROQ_API_KEY_3
+].filter(Boolean); // Removes undefined keys
 
 interface Message {
     id: string;
@@ -54,13 +60,28 @@ export default function AIAssistant({ mode, codeContext, subject = "Computer Sci
 
     useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
 
+    // --- KEY ROTATION LOGIC ---
     const fetchWithRetry = async (payload: any, attempt = 0): Promise<any> => {
         if (API_KEYS.length === 0) throw new Error("No API Keys configured");
+        
+        // Pick key based on attempt count (Round Robin)
         const currentKey = API_KEYS[attempt % API_KEYS.length];
+
         try {
-            return await axios.post(GROQ_API_URL, payload, { headers: { "Authorization": `Bearer ${currentKey}`, "Content-Type": "application/json" } });
+            // Using axios.create to ensure clean headers (Fixes 401 Issue)
+            const aiClient = axios.create();
+            return await aiClient.post(GROQ_API_URL, payload, { 
+                headers: { 
+                    "Authorization": `Bearer ${currentKey}`, 
+                    "Content-Type": "application/json" 
+                } 
+            });
         } catch (error: any) {
-            if ((error.response?.status === 429 || error.response?.status === 401) && attempt < API_KEYS.length - 1) return fetchWithRetry(payload, attempt + 1);
+            // Retry if Rate Limited (429) or Unauthorized (401) AND we have more keys to try
+            if ((error.response?.status === 429 || error.response?.status === 401) && attempt < API_KEYS.length - 1) {
+                console.warn(`Key ${attempt + 1} failed. Switching to next key...`);
+                return fetchWithRetry(payload, attempt + 1);
+            }
             throw error;
         }
     };
@@ -75,16 +96,18 @@ export default function AIAssistant({ mode, codeContext, subject = "Computer Sci
         try {
             const systemPrompt = `You are a strict Computer Science Professor. Subject: ${subject}. Task: ${taskTitle}. Mode: ${mode}. Code Context: \n${codeContext}`;
             const recentMessages = messages.filter(m => m.role !== 'system').slice(-6);
+            
             const response = await fetchWithRetry({
                 model: "llama-3.3-70b-versatile",
                 messages: [{ role: "system", content: systemPrompt }, ...recentMessages.map(m => ({ role: m.role, content: m.content })), { role: "user", content: userMsgText }],
                 temperature: 0.7, max_tokens: 600,
             });
+
             const aiResponseText = response.data.choices[0]?.message?.content || "Processing error.";
             setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: aiResponseText, isTyping: true }]);
             onLog?.(userMsgText, aiResponseText);
         } catch (error) {
-            setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: `⚠️ Error connecting to AI.`, isTyping: false }]);
+            setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: `⚠️ Error connecting to AI. Please try again later.`, isTyping: false }]);
         } finally { setLoading(false); }
     };
 

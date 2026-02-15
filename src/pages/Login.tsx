@@ -18,7 +18,9 @@ import {
   Eye,
   EyeOff,
   Lock,
-  Check
+  Check,
+  Menu,
+  X
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -29,6 +31,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 // --- Visual Components ---
 
@@ -165,8 +174,11 @@ export default function Login() {
     }
   };
 
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
+
   return (
-    // Changed: min-h-screen + overflow-x-hidden (allows vertical scrolling on small screens)
     <div className="min-h-screen text-foreground flex flex-col relative overflow-x-hidden font-sans selection:bg-primary/20 selection:text-primary">
       <GridPattern />
 
@@ -190,6 +202,8 @@ export default function Login() {
             <span className="text-foreground">Flow</span>
           </span>
         </div>
+
+        {/* Desktop Navigation */}
         <div className="hidden md:flex gap-6 text-sm font-medium text-muted-foreground items-center">
           <button
             onClick={(e) => {
@@ -204,12 +218,12 @@ export default function Login() {
               document.documentElement.style.setProperty('--theme-x', `${x}px`);
               document.documentElement.style.setProperty('--theme-y', `${y}px`);
               document.documentElement.style.setProperty('--theme-r', `${maxRadius}px`);
-              if (document.startViewTransition) {
-                document.startViewTransition(() => {
-                  setTheme(theme === "dark" ? "light" : "dark");
+              if ((document as any).startViewTransition) {
+                (document as any).startViewTransition(() => {
+                  toggleTheme();
                 });
               } else {
-                setTheme(theme === "dark" ? "light" : "dark");
+                toggleTheme();
               }
             }}
             className="p-2 rounded-full hover:bg-muted transition-colors text-foreground"
@@ -229,6 +243,60 @@ export default function Login() {
           >
             Support
           </span>
+        </div>
+
+        {/* Mobile Hamburger Menu */}
+        <div className="md:hidden">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-foreground">
+                <Menu size={24} />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+              <SheetHeader>
+                <SheetTitle className="text-left font-display text-xl font-bold flex items-center gap-2">
+                   <div className="h-7 w-7 bg-primary text-primary-foreground rounded-lg flex items-center justify-center">
+                    <GraduationCap size={16} strokeWidth={2.5} />
+                  </div>
+                  AcadFlow
+                </SheetTitle>
+              </SheetHeader>
+              
+              <div className="flex flex-col gap-6 mt-8">
+                <div className="flex items-center justify-between p-4 bg-muted/40 rounded-lg border border-border">
+                   <span className="text-sm font-medium">Appearance</span>
+                   <Button variant="outline" size="sm" onClick={toggleTheme} className="gap-2 h-8">
+                     {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+                     {theme === "dark" ? "Light Mode" : "Dark Mode"}
+                   </Button>
+                </div>
+
+                <div className="space-y-1">
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start text-base font-normal h-12"
+                    onClick={() => navigate('/privacy')}
+                  >
+                    <BookOpen size={18} className="mr-3 text-muted-foreground" />
+                    Documentation
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start text-base font-normal h-12"
+                    onClick={() => navigate('/support')}
+                  >
+                    <ShieldCheck size={18} className="mr-3 text-muted-foreground" />
+                    Support
+                  </Button>
+                </div>
+              </div>
+
+              <div className="absolute bottom-6 left-6 text-xs text-muted-foreground">
+                 v2.4.0 (Stable)
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </nav>
 
